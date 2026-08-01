@@ -132,7 +132,7 @@ p {
 h1 {
   max-width: 800px;
   margin-bottom: 24px;
-  font-size: clamp(3.25rem, 8vw, 6.4rem);
+  font-size: clamp(1.25rem, 6vw, 4.4rem);
   line-height: 0.98;
   letter-spacing: -0.065em;
 }
@@ -224,7 +224,7 @@ h1 {
 .article-body h3 {
   max-width: 700px;
   margin-bottom: 14px;
-  font-size: clamp(2rem, 5vw, 3.65rem);
+  font-size: clamp(1rem, 4vw, 2.65rem);
   line-height: 1.08;
   letter-spacing: -0.045em;
 }
@@ -303,10 +303,6 @@ h1 {
     padding: 72px 0 62px;
   }
 
-  h1 {
-    font-size: clamp(3.2rem, 16vw, 4.3rem);
-  }
-
   .articles {
     padding-bottom: 84px;
   }
@@ -324,10 +320,6 @@ h1 {
   .article-body {
     grid-template-columns: 1fr;
     gap: 28px;
-  }
-
-  .article-body h3 {
-    font-size: clamp(2rem, 10vw, 2.75rem);
   }
 
   .article-arrow {
