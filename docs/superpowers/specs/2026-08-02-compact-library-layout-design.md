@@ -5,8 +5,8 @@
 Refine the existing bilingual Knowledge Library homepage so it feels compact,
 balanced, and editorial without changing its content or visual identity. Move
 the Transformer article's return control out of the article header and into a
-small bottom-right floating position so it no longer pushes the title and body
-down the page.
+small bottom-right position so it no longer pushes the title and body down the
+page or covers text on narrow screens.
 
 ## Scope and Repository Boundaries
 
@@ -62,14 +62,17 @@ are introduced.
 
 ## Article Return Control
 
-Remove the return navigation from normal document flow so the article begins
-directly with its title. Position the control at the bottom-right of the
-viewport:
+Remove the return navigation from the article header so the article begins
+directly with its title. Float the control at the viewport's bottom-right only
+when the viewport is wide enough to keep it outside the reading column; place
+it at the article's bottom-right on narrower screens:
 
 - visible copy: `返回主页 / Back to Library`;
 - destination: `https://xiemeimeiaaa.github.io/`;
-- fixed positioning with `right: clamp(12px, 3vw, 28px)` and
+- fixed positioning above `1200px`, with `right: clamp(12px, 3vw, 28px)` and
   `bottom: calc(16px + env(safe-area-inset-bottom))`;
+- absolute article-end positioning at `1200px` and below so the bilingual pill
+  never covers mobile or tablet reading content;
 - compact pill shape with a subtle white translucent surface, restrained
   border and shadow, and at least a `44px` touch target;
 - inherit the article's font family and text rendering instead of introducing
@@ -87,8 +90,9 @@ preserves browser-native behavior.
 
 - The homepage and article must remain free of horizontal overflow at `390px`.
 - Article metadata may wrap, but must not collide with the title or arrow.
-- The floating return control must stay fully inside the viewport on desktop
-  and mobile, including devices with a bottom safe area.
+- The return control must stay fully inside the viewport on wide desktop and
+  inside the article boundary on narrower screens, including devices with a
+  bottom safe area.
 - Existing focus-visible and reduced-motion behavior remains intact.
 - Both the full article card and floating return link retain at least a
   `44px` interactive target.
@@ -103,8 +107,9 @@ preserves browser-native behavior.
   changed.
 - Check desktop and `390px` mobile screenshots for card density, collisions,
   clipping, and unnecessary blank space.
-- Scroll the article and verify the return control remains bottom-right without
-  moving the article title or causing horizontal overflow.
+- Scroll the article and verify the return control remains bottom-right outside
+  the wide desktop reading column and appears after the final paragraph on
+  narrower screens, without moving the title or causing horizontal overflow.
 - Click the return control on the published article and confirm the browser
   reaches `https://xiemeimeiaaa.github.io/`.
 - Confirm both Pages builds complete and both repositories are clean and synced.

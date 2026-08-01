@@ -176,7 +176,7 @@ git commit -m "Compact homepage article layout"
 
 **Interfaces:**
 - Consumes: the existing `.site-navigation` wrapper and `.home-link` anchor.
-- Produces: an ordinary fixed-position anchor labeled `返回主页 / Back to Library` that navigates to the personal homepage without JavaScript.
+- Produces: an ordinary anchor labeled `返回主页 / Back to Library` that floats outside the reading column on wide screens, rests at the article end on narrower screens, and navigates to the personal homepage without JavaScript.
 
 - [ ] **Step 1: Change the browser-DOM test first**
 
@@ -250,6 +250,12 @@ body {
   color: #173f9e;
   background: #ffffff;
 }
+
+@media (max-width: 1200px) {
+  .site-navigation {
+    position: absolute;
+  }
+}
 ```
 
 Retain the existing explicit `:focus-visible` outline. In the mobile media query, set:
@@ -268,7 +274,7 @@ Run:
 node --test tests/navigation.test.mjs
 ```
 
-Expected: 1 test PASS. At desktop and `390 × 844`, use Chrome to assert:
+Expected: 1 test PASS. At `1440px`, use Chrome to assert:
 
 ```javascript
 const navigation = document.querySelector(".site-navigation");
@@ -284,7 +290,10 @@ link.href === "https://xiemeimeiaaa.github.io/";
 document.documentElement.scrollWidth <= document.documentElement.clientWidth;
 ```
 
-Scroll to the article's middle and end and repeat the bounding-box checks. Confirm the `h1` starts at the body's top content edge rather than below a navigation element, and the final paragraph can scroll above the fixed control.
+At `390 × 844`, assert `getComputedStyle(navigation).position === "absolute"`,
+that the control is below the viewport while reading the article, and that it
+is fully visible below the final paragraph after scrolling to the end. Confirm
+the `h1` starts at the body's top content edge and neither viewport overflows.
 
 - [ ] **Step 6: Commit the article navigation refinement**
 
