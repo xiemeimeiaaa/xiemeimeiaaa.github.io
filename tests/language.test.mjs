@@ -36,12 +36,29 @@ test("English and Chinese translations expose the same complete interface", () =
     "articleTitle",
     "articleSummary",
     "articleAria",
+    "article2Date",
+    "article2ReadingTime",
+    "article2Title",
+    "article2Summary",
+    "article2Aria",
     "footer",
     "githubAria",
   ].sort();
 
   assert.deepEqual(Object.keys(translations.en).sort(), expectedKeys);
   assert.deepEqual(Object.keys(translations.zh).sort(), expectedKeys);
+});
+
+test("both locales describe the inference article", () => {
+  assert.equal(
+    translations.en.article2Title,
+    "How Transformer LLMs Generate Text",
+  );
+  assert.equal(translations.zh.article2Title, "Transformer LLM 如何生成文本");
+  assert.match(translations.en.article2Summary, /Prefill.*Decode.*KV cache/i);
+  assert.match(translations.zh.article2Summary, /Prefill.*Decode.*KV Cache/i);
+  assert.equal(translations.en.count, "2 articles");
+  assert.equal(translations.zh.count, "2 篇文章");
 });
 
 test("applying a language updates visible copy, accessible labels, and document language", () => {

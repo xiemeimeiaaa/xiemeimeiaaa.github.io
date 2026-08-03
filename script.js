@@ -6,8 +6,8 @@ export const translations = {
     heading: "Knowledge Library",
     description:
       "Clear explanations of language models, AI agents, and software engineering—built from first principles.",
-    latest: "Latest article",
-    count: "1 article",
+    latest: "Articles",
+    count: "2 articles",
     topic: "LLMs",
     date: "AUG 2026",
     readingTime: "15 MIN READ",
@@ -15,6 +15,12 @@ export const translations = {
     articleSummary:
       "From tokens and attention to logits, loss, backpropagation, and weight updates.",
     articleAria: "Read “Transformer LLMs for Beginners”",
+    article2Date: "AUG 2026",
+    article2ReadingTime: "18 MIN READ",
+    article2Title: "How Transformer LLMs Generate Text",
+    article2Summary:
+      "Prefill, Decode, the KV cache, and prompt caching—from compute savings to memory trade-offs.",
+    article2Aria: "Read “How Transformer LLMs Generate Text”",
     footer: "More writing will appear here over time.",
     githubAria: "Visit Mei's GitHub profile",
   },
@@ -24,8 +30,8 @@ export const translations = {
     kicker: "写作与笔记",
     heading: "知识库",
     description: "从第一性原理出发，清晰解释大语言模型、AI Agent 与软件工程。",
-    latest: "最新文章",
-    count: "1 篇文章",
+    latest: "文章",
+    count: "2 篇文章",
     topic: "LLMs",
     date: "2026年8月",
     readingTime: "阅读约 15 分钟",
@@ -33,6 +39,12 @@ export const translations = {
     articleSummary:
       "从 token 与注意力机制，到 logits、损失、反向传播和权重更新。",
     articleAria: "阅读《初学 Transformer LLM》",
+    article2Date: "2026年8月",
+    article2ReadingTime: "阅读约 18 分钟",
+    article2Title: "Transformer LLM 如何生成文本",
+    article2Summary:
+      "从 Prefill、Decode 与 KV Cache，到计算节省、显存代价和 Prompt Cache。",
+    article2Aria: "阅读《Transformer LLM 如何生成文本》",
     footer: "更多文章会陆续整理在这里。",
     githubAria: "访问 Mei 的 GitHub 主页",
   },
