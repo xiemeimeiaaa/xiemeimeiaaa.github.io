@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="How Transformer LLMs use Prefill, Decode, the KV cache, and prompt caching to generate text efficiently."
+    >
+    <meta name="theme-color" content="#eef3f8">
+    <meta property="og:type" content="article">
+    <meta
+      property="og:title"
+      content="How Transformer LLMs Generate Text: Prefill, Decode, and the KV Cache"
+    >
+    <meta
+      property="og:description"
+      content="A visual, quantitative guide to Transformer inference, KV-cache memory, and reusable prompt prefixes."
+    >
+    <meta
+      property="og:url"
+      content="https://xiemeimeiaaa.github.io/articles/transformer-inference-kv-cache/"
+    >
+    <link
+      rel="canonical" href="https://xiemeimeiaaa.github.io/articles/transformer-inference-kv-cache/"
+    >
+    <title>How Transformer LLMs Generate Text: Prefill, Decode, and the KV Cache</title>
+    <link rel="stylesheet" href="styles.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js"></script>
+    <script type="module" src="script.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#article-content">Skip to article</a>
+
+    <header class="site-header">
+      <div class="shell header-inner">
+        <a class="site-name" href="/">MEI / 梅</a>
+        <a class="library-link" href="/">Back to Library</a>
+      </div>
+    </header>
+
+    <div class="shell article-layout">
+      <aside class="contents-panel">
+        <nav aria-label="Article contents">
+          <p class="contents-label">On this page</p>
+          <ol>
+            <li><a href="#prefill-and-decode">Prefill and Decode</a></li>
+            <li><a href="#prefill">Prefill</a></li>
+            <li><a href="#decode">Decode</a></li>
+            <li><a href="#compute-savings">Compute savings</a></li>
+            <li><a href="#memory-cost">Memory cost</a></li>
+            <li><a href="#mha-gqa-mqa">MHA, GQA, and MQA</a></li>
+            <li><a href="#cached-token-pricing">Cached-token pricing</a></li>
+            <li><a href="#prompt-caching">Prompt caching</a></li>
+            <li><a href="#openai-prompt-caching">OpenAI requirements</a></li>
+            <li><a href="#improving-cache-hit-rate">Improving hit rate</a></li>
+            <li><a href="#cache-breaking-patterns">Cache-breaking patterns</a></li>
+          </ol>
+        </nav>
+      </aside>
+
+      <main id="article-content">
+        <article>
+          <header class="article-header">
+            <p class="eyebrow">LLM INFERENCE</p>
+            <h1>How Transformer LLMs Generate Text: Prefill, Decode, and the KV Cache</h1>
+            <p class="dek">
+              How does a trained Transformer generate text one token at a
+              time—and how does the KV cache keep it from recomputing the
+              same prefix at every step?
+            </p>
+            <div class="article-meta">
+              <time datetime="2026-08-03">August 2026</time>
+              <span>18 min read</span>
+            </div>
+            <p class="prerequisite">
+              This article starts with a trained model. For embeddings,
+              Transformer blocks, attention, and training, read
+              <a href="https://xiemeimeiaaa.github.io/transformer-llms-for-beginners/">Transformer LLMs for Beginners</a>.
+            </p>
+          </header>
+
+          <section aria-labelledby="prefill-and-decode">
+            <h2 id="prefill-and-decode">1. From Prefill to Decode</h2>
+            <p>
+              Once training is complete, the model's projection and MLP
+              weights stay fixed. Inference then proceeds in two distinct
+              stages: Prefill and Decode.
+            </p>
+          </section>
+
+          <section aria-labelledby="prefill">
+            <h3 id="prefill">Prefill: Process the Known Prompt in Parallel</h3>
+            <p>
+              Every prompt token is known when the request begins, so each
+              Transformer layer can process all prompt positions in parallel.
+            </p>
+          </section>
+
+          <section aria-labelledby="decode">
+            <h3 id="decode">Decode: Reuse Keys and Values</h3>
+            <p>
+              Decode produces one new token at a time while reusing the keys
+              and values computed for earlier positions.
+            </p>
+            <figure>
+              <img
+                src="assets/qkv-relationship.png"
+                alt="A query at the current token scores earlier keys and uses the resulting attention weights to retrieve their values."
+                width="1672"
+                height="941"
+              >
+              <figcaption>Queries match against keys; attention weights retrieve values.</figcaption>
+            </figure>
+          </section>
+
+          <section aria-labelledby="compute-savings">
+            <h3 id="compute-savings">How Much Computation Does the KV Cache Save?</h3>
+            <p>
+              The most direct saving comes from avoiding repeated K/V
+              projections for historical tokens at every decode step.
+            </p>
+          </section>
+
+          <section aria-labelledby="memory-cost">
+            <h3 id="memory-cost">What Does Caching Cost?</h3>
+            <p>
+              The trade-off is accelerator memory: every layer stores a key
+              and a value for every cached token.
+            </p>
+          </section>
+
+          <section aria-labelledby="mha-gqa-mqa">
+            <h3 id="mha-gqa-mqa">Can We Use Fewer Cached Heads?</h3>
+            <p>
+              MHA, GQA, and MQA differ in how query heads share K/V heads,
+              changing both cache size and K/V-projection cost.
+            </p>
+            <figure>
+              <img
+                src="assets/mha-gqa-mqa.png"
+                alt="Comparison of MHA, GQA, and MQA showing 32 query heads sharing 32, 8, or 1 K/V heads respectively."
+                width="1693"
+                height="929"
+              >
+              <figcaption>MHA, GQA, and MQA make different quality–efficiency trade-offs.</figcaption>
+            </figure>
+          </section>
+
+          <section aria-labelledby="cached-token-pricing">
+            <h3 id="cached-token-pricing">How Providers Price Cached Tokens</h3>
+            <p>
+              Provider billing is a product policy layered on top of the
+              underlying caching mechanism and can change over time.
+            </p>
+          </section>
+
+          <section aria-labelledby="prompt-caching">
+            <h2 id="prompt-caching">2. Prompt Caching Across Requests</h2>
+            <p>
+              A normal KV cache reuses work within one generation. Prompt
+              caching extends prefix reuse across requests and conversation
+              turns.
+            </p>
+          </section>
+
+          <section aria-labelledby="openai-prompt-caching">
+            <h3 id="openai-prompt-caching">OpenAI Prompt Caching Requirements</h3>
+            <p>
+              OpenAI-specific behavior belongs in a dated provider note rather
+              than in the model-independent explanation.
+            </p>
+          </section>
+
+          <section aria-labelledby="improving-cache-hit-rate">
+            <h3 id="improving-cache-hit-rate">How to Improve the Cached-Token Hit Rate</h3>
+            <p>
+              Place the most stable, broadly reusable content first and the
+              most dynamic, request-specific content last.
+            </p>
+          </section>
+
+          <section aria-labelledby="cache-breaking-patterns">
+            <h3 id="cache-breaking-patterns">Common Cache-Breaking Patterns</h3>
+            <p>
+              Early changes to an exact-matched prefix reduce how much work a
+              later request can reuse.
+            </p>
+            <figure>
+              <img
+                src="assets/system-prompt-layout.png"
+                alt="A system prompt layout ordered from globally cached instructions and tools to project context, session state, and messages that grow each turn."
+                width="2210"
+                height="1218"
+              >
+              <figcaption>Stable instructions come first; dynamic conversation state grows at the end.</figcaption>
+            </figure>
+          </section>
+        </article>
+      </main>
+    </div>
+
+    <footer class="site-footer">
+      <div class="shell footer-inner">
+        <a href="/">← Back to the Knowledge Library</a>
+        <a href="https://github.com/xiemeimeiaaa">GitHub ↗</a>
+      </div>
+    </footer>
+  </body>
+</html>

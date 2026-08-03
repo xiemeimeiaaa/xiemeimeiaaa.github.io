@@ -1,0 +1,80 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+
+import { selectActiveHeading } from "../articles/transformer-inference-kv-cache/script.js";
+
+const articleUrl = new URL(
+  "../articles/transformer-inference-kv-cache/index.html",
+  import.meta.url,
+);
+
+test("article exposes metadata and semantic landmarks", async () => {
+  const html = await readFile(articleUrl, "utf8");
+  assert.match(html, /<html lang="en">/);
+  assert.match(html, /<title>How Transformer LLMs Generate Text:/);
+  assert.match(
+    html,
+    /rel="canonical" href="https:\/\/xiemeimeiaaa\.github\.io\/articles\/transformer-inference-kv-cache\/"/,
+  );
+  assert.match(html, /<main[^>]*>/);
+  assert.match(html, /<article[^>]*>/);
+  assert.match(html, /<nav[^>]*aria-label="Article contents"/);
+});
+
+test("article preserves the source section order", async () => {
+  const html = await readFile(articleUrl, "utf8");
+  const ids = [
+    "prefill-and-decode",
+    "prefill",
+    "decode",
+    "compute-savings",
+    "memory-cost",
+    "mha-gqa-mqa",
+    "cached-token-pricing",
+    "prompt-caching",
+    "openai-prompt-caching",
+    "improving-cache-hit-rate",
+    "cache-breaking-patterns",
+  ];
+  const positions = ids.map((id) => html.indexOf(`id="${id}"`));
+  assert.ok(positions.every((position) => position >= 0));
+  assert.deepEqual(positions, [...positions].sort((a, b) => a - b));
+});
+
+test("article references three English illustrations with alt text", async () => {
+  const html = await readFile(articleUrl, "utf8");
+  for (const name of [
+    "qkv-relationship.png",
+    "mha-gqa-mqa.png",
+    "system-prompt-layout.png",
+  ]) {
+    assert.match(html, new RegExp(`assets/${name}`));
+  }
+  const imageTags = html.match(/<img\b[^>]*>/g) ?? [];
+  assert.equal(imageTags.length, 3);
+  assert.ok(imageTags.every((tag) => /\balt="[^"]+"/.test(tag)));
+});
+
+test("article navigation selects the visible heading nearest the top", () => {
+  const entries = [
+    {
+      isIntersecting: true,
+      boundingClientRect: { top: 320 },
+      target: { id: "memory-cost" },
+    },
+    {
+      isIntersecting: false,
+      boundingClientRect: { top: 40 },
+      target: { id: "compute-savings" },
+    },
+    {
+      isIntersecting: true,
+      boundingClientRect: { top: 120 },
+      target: { id: "mha-gqa-mqa" },
+    },
+  ];
+
+  assert.equal(selectActiveHeading(entries), "mha-gqa-mqa");
+  assert.equal(selectActiveHeading([]), null);
+});
