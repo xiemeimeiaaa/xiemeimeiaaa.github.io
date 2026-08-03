@@ -3,9 +3,10 @@
 A bilingual personal homepage and article index published at
 <https://xiemeimeiaaa.github.io/>.
 
-The first card links to the separately maintained
-[`transformer-llms-for-beginners`](https://github.com/xiemeimeiaaa/transformer-llms-for-beginners)
-article repository. This homepage does not copy or move that article.
+The homepage currently features two long-form Transformer guides:
+
+- [`How Transformer LLMs Generate Text: Inference and the KV Cache`](https://xiemeimeiaaa.github.io/articles/transformer-inference-kv-cache/), maintained in this repository under `articles/transformer-inference-kv-cache/`.
+- [`How Transformer LLMs Work`](https://xiemeimeiaaa.github.io/transformer-llms-for-beginners/), maintained in its own article repository and linked from this homepage.
 
 English and Chinese copy lives in the `translations` object in `script.js`.
 Add matching keys to both languages when changing interface text.
@@ -21,5 +22,5 @@ Then open <http://localhost:8000/>.
 ## Tests
 
 ```bash
-node --test tests/language.test.mjs
+node --test tests/*.test.mjs
 ```
