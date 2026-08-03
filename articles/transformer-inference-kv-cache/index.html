@@ -83,25 +83,77 @@
           <section aria-labelledby="prefill-and-decode">
             <h2 id="prefill-and-decode">1. From Prefill to Decode</h2>
             <p>
-              Once training is complete, the model's projection and MLP
-              weights stay fixed. Inference then proceeds in two distinct
-              stages: Prefill and Decode.
+              Once training is complete, the model's <var>W<sub>Q</sub></var>,
+              <var>W<sub>K</sub></var>, <var>W<sub>V</sub></var>, MLP, and
+              other learned weights remain fixed. What changes from token to
+              token is the hidden state <var>H</var> at each
+              layer—and therefore the queries, keys, and values projected
+              from it.
             </p>
+            <p>Inference has two stages:</p>
+            <ul>
+              <li>
+                <strong>Prefill</strong> processes the entire input—the system
+                prompt, conversation history, documents, and current
+                request—in parallel. It produces a key and value for every
+                input token at every layer. If an eligible prefix has already
+                been cached by the serving system, some of this work may be
+                reused.
+              </li>
+              <li>
+                <strong>Decode</strong> generates new tokens sequentially. To
+                compute attention for the next token, it uses the keys and
+                values of every token that came before it.
+              </li>
+            </ul>
           </section>
 
           <section aria-labelledby="prefill">
             <h3 id="prefill">Prefill: Process the Known Prompt in Parallel</h3>
             <p>
-              Every prompt token is known when the request begins, so each
-              Transformer layer can process all prompt positions in parallel.
+              Suppose the prompt is:
             </p>
+            <pre><code>I    like    eating    apples</code></pre>
+            <p>
+              All four tokens are known when the request begins. Prefill can
+              therefore process every position in parallel at each layer, just
+              as the model does during training:
+            </p>
+            <pre><code>all prompt tokens
+  → embeddings produce H⁽⁰⁾
+  → layer 1 projects Q⁽¹⁾, K⁽¹⁾, and V⁽¹⁾ for every position → H⁽¹⁾
+  → layer 2 projects Q⁽²⁾, K⁽²⁾, and V⁽²⁾ for every position → H⁽²⁾
+  → …
+  → layer L produces H⁽ᴸ⁾</code></pre>
+            <p>
+              The causal mask still applies. The token <em>I</em> cannot see
+              <em>like</em>, <em>eating</em>, or <em>apples</em>. Parallelism
+              means that matrix operations cover many positions at once; it
+              does not allow information to leak backward from future
+              positions.
+            </p>
+            <p>Prefill completes two jobs:</p>
+            <ol>
+              <li>
+                It uses the final hidden state at the last prompt position to
+                compute the logits for the first token to be generated.
+              </li>
+              <li>
+                It stores the keys and values produced for the prompt at
+                <strong>every layer</strong>, creating the initial KV cache.
+              </li>
+            </ol>
           </section>
 
           <section aria-labelledby="decode">
             <h3 id="decode">Decode: Reuse Keys and Values</h3>
             <p>
-              Decode produces one new token at a time while reusing the keys
-              and values computed for earlier positions.
+              First, recall the attention relationship from the previous
+              article. At position 2, the current token's query
+              <var>Q<sub>2</sub></var> is
+              compared with the keys of the positions it may attend to. After
+              softmax, those scores become attention weights, which are then
+              used to combine the corresponding values.
             </p>
             <figure>
               <img
@@ -112,30 +164,266 @@
               >
               <figcaption>Queries match against keys; attention weights retrieve values.</figcaption>
             </figure>
+            <p>
+              The same pattern holds at position <var>n</var>:
+              <var>Q<sub>n</sub></var> scores the keys from positions 1
+              through <var>n</var>, and the resulting weights
+              retrieve information from their values. During autoregressive
+              generation, positions 1 through <var>n−1</var> are history.
+              Their keys
+              and values are read again for every later token.
+            </p>
+            <p class="callout">
+              This is the central observation: the keys and values of earlier
+              tokens are reused repeatedly.
+            </p>
+            <p>At layer <var>l</var>, a historical token's key and value are:</p>
+            <div class="math-block">
+              \[
+              K_i^{(l)}=H_i^{(l-1)}W_K^{(l)},\qquad
+              V_i^{(l)}=H_i^{(l-1)}W_V^{(l)}
+              \]
+            </div>
+            <p>
+              The KV cache stores those <var>K</var> and <var>V</var> tensors for every
+              historical token at every layer. Most directly, it eliminates
+              repeated historical K/V projections. More broadly, it prevents
+              the model from having to run historical tokens through the
+              preceding attention and MLP computations again merely to
+              reconstruct the same keys and values.
+            </p>
+            <p>
+              Caching does <em>not</em> eliminate attention over history. The
+              new token still needs a fresh query, that query still scores all
+              cached keys, and the attention weights still read the cached
+              values.
+            </p>
           </section>
 
           <section aria-labelledby="compute-savings">
             <h3 id="compute-savings">How Much Computation Does the KV Cache Save?</h3>
             <p>
-              The most direct saving comes from avoiding repeated K/V
-              projections for historical tokens at every decode step.
+              Start with the easiest part to quantify: projecting the
+              historical tokens into keys and values.
+            </p>
+            <p>
+              Suppose one layer has <var>T</var> historical tokens. Their hidden
+              states form the matrix
+            </p>
+            <div class="math-block">
+              \[
+              H^{(l-1)}\in\mathbb{R}^{T\times d_{model}}
+              \]
+            </div>
+            <p>The K and V projection matrices have shapes</p>
+            <div class="math-block">
+              \[
+              W_K^{(l)},W_V^{(l)}\in
+              \mathbb{R}^{d_{model}\times d_{kv}},\qquad
+              d_{kv}=n_{kv\_heads}\times d_{head}
+              \]
+            </div>
+            <ul>
+              <li>
+                <var>d<sub>model</sub></var> is the width of the hidden state passed between
+                Transformer layers for each token.
+              </li>
+              <li>
+                <var>d<sub>head</sub></var> is the dimensionality of one attention head.
+              </li>
+              <li>
+                <var>n<sub>kv_heads</sub></var> is the number of K/V heads.
+              </li>
+              <li>
+                <var>d<sub>kv</sub></var> is the combined width of all K
+                heads—or all V heads. It need not equal
+                <var>d<sub>model</sub></var>: the two are usually equal in
+                MHA, while <var>d<sub>kv</sub></var> is often smaller in GQA
+                and MQA.
+              </li>
+            </ul>
+            <p>
+              For <var>K=HW<sub>K</sub></var>, each output element requires
+              roughly <var>d<sub>model</sub></var> multiply–accumulate
+              operations. Projecting <var>T</var>
+              historical tokens into K at one layer therefore costs
+            </p>
+            <div class="math-block">
+              \[
+              T\times d_{model}\times d_{kv}\quad\text{MACs}
+              \]
+            </div>
+            <p><strong>A deliberately small example makes the count concrete.</strong></p>
+            <p>
+              Let <var>T=2</var>, <var>d<sub>model</sub>=3</var>, and
+              <var>d<sub>kv</sub>=2</var>. Then
+            </p>
+            <div class="math-block">
+              \[
+              H\in\mathbb{R}^{2\times3},\qquad
+              W_K\in\mathbb{R}^{3\times2},\qquad
+              K=HW_K\in\mathbb{R}^{2\times2}
+              \]
+            </div>
+            <p>
+              The K matrix has <var>2×2=4</var> output elements. Its first
+              element for the first token is
+            </p>
+            <div class="math-block">
+              \[
+              K_{1,1}=H_{1,1}W_{K,1,1}
+              +H_{1,2}W_{K,2,1}
+              +H_{1,3}W_{K,3,1}
+              \]
+            </div>
+            <p>
+              This dot product spans <var>d<sub>model</sub>=3</var>
+              dimensions, so it needs
+              three MACs. Four output elements therefore require
+            </p>
+            <div class="math-block">
+              \[
+              4\times3
+              =T\times d_{kv}\times d_{model}
+              =2\times2\times3
+              =12\ \text{MACs}
+              \]
+            </div>
+            <p>The K projection in this example therefore costs 12 MACs.</p>
+            <p>
+              In other words, <var>T</var> determines the number of rows in K,
+              <var>d<sub>kv</sub></var> determines the number of outputs in
+              each row, and every output requires a dot product across
+              <var>d<sub>model</sub></var>.
+            </p>
+            <p>
+              V has the same shape and compute cost but uses a separate matrix
+              <var>W<sub>V</sub></var>. The combined historical K and V projections therefore
+              cost
+            </p>
+            <div class="math-block">
+              \[
+              2\times T\times d_{model}\times d_{kv}
+              \quad\text{MACs per layer}
+              \]
+            </div>
+            <p>
+              For a model with <var>L</var> layers, caching historical K/V avoids
+              approximately
+            </p>
+            <div class="math-block">
+              \[
+              2\times L\times T\times d_{model}\times d_{kv}
+              \quad\text{historical K/V-projection MACs per Decode step}
+              \]
+            </div>
+            <p>
+              This expression deliberately measures the projection component.
+              The complete benefit of caching is larger because historical
+              tokens also avoid another pass through the rest of each layer.
             </p>
           </section>
 
           <section aria-labelledby="memory-cost">
             <h3 id="memory-cost">What Does Caching Cost?</h3>
             <p>
-              The trade-off is accelerator memory: every layer stores a key
-              and a value for every cached token.
+              The trade-off is accelerator memory. Every token needs one key
+              and one value at <strong>every layer</strong>, so the approximate
+              KV-cache size is
+            </p>
+            <div class="math-block">
+              \[
+              2\times n_{batch}\times n_{layers}\times n_{tokens}
+              \times n_{kv\_heads}\times d_{head}\times bytes_{element}
+              \]
+            </div>
+            <ul>
+              <li>The leading <var>2</var> accounts for both K and V.</li>
+              <li>
+                <var>n<sub>batch</sub></var> is the number of sequences being served
+                together; doubling the batch doubles the cache.
+              </li>
+              <li>
+                <var>n<sub>layers</sub></var> appears because every layer has its own K/V
+                tensors; they cannot be shared across layers.
+              </li>
+              <li>
+                <var>n<sub>tokens</sub></var> is the number of cached historical tokens.
+              </li>
+              <li>
+                <var>n<sub>kv_heads</sub></var> and
+                <var>d<sub>head</sub></var> determine the stored K/V
+                width at each layer.
+              </li>
+              <li>
+                <var>bytes<sub>element</sub></var> is the storage per value; FP16 and BF16
+                usually use two bytes.
+              </li>
+            </ul>
+            <p>
+              Removing <var>n<sub>tokens</sub></var> and
+              <var>n<sub>batch</sub></var> gives the cache growth
+              for one additional token in one sequence:
+            </p>
+            <div class="math-block">
+              \[
+              2\times n_{layers}\times n_{kv\_heads}
+              \times d_{head}\times bytes_{element}
+              \]
+            </div>
+            <p>
+              Consider a 32-layer model with 8 K/V heads, a head dimension of
+              128, and FP16 or BF16 storage:
+            </p>
+            <div class="math-block">
+              \[
+              2\times32\times8\times128\times2
+              =131{,}072\ \text{bytes}=128\ \text{KiB per token}
+              \]
+            </div>
+            <p>That is 128 KiB per token for one sequence.</p>
+            <p>At batch size 1, a 4,096-token cache needs approximately</p>
+            <div class="math-block">
+              \[
+              4096\times128\ \text{KiB}=512\ \text{MiB}
+              \]
+            </div>
+            <p>The resulting cache is approximately 512 MiB.</p>
+            <p>
+              At batch size 4, that becomes roughly <strong>2 GiB</strong>.
+              Real systems may add alignment, paging, preallocation, or
+              quantization metadata, but the linear relationship remains:
+              longer contexts, larger batches, more layers, more K/V heads,
+              or more bytes per element all increase cache memory.
             </p>
           </section>
 
           <section aria-labelledby="mha-gqa-mqa">
             <h3 id="mha-gqa-mqa">Can We Use Fewer Cached Heads?</h3>
             <p>
-              MHA, GQA, and MQA differ in how query heads share K/V heads,
-              changing both cache size and K/V-projection cost.
+              Yes. Reducing the number of <strong>K/V heads</strong> lowers
+              both K/V-projection compute and KV-cache memory at the source.
+              This is the central difference among MHA, GQA, and MQA:
             </p>
+            <ul>
+              <li>
+                <strong>Multi-Head Attention (MHA)</strong> uses the same
+                number of query, key, and value heads. Each query head gets its
+                own corresponding K/V head. This gives the model the most
+                independent K/V representations—and uses the most cache.
+              </li>
+              <li>
+                <strong>Grouped-Query Attention (GQA)</strong> keeps many query
+                heads but divides them into groups. Query heads in one group
+                share a K/V head. With 32 query heads and 8 K/V heads, every
+                group of four query heads shares one K/V head.
+              </li>
+              <li>
+                <strong>Multi-Query Attention (MQA)</strong> lets every query
+                head share one K/V head. It is the most aggressive endpoint of
+                the same design spectrum and uses the least cache.
+              </li>
+            </ul>
             <figure>
               <img
                 src="assets/mha-gqa-mqa.png"
@@ -145,46 +433,280 @@
               >
               <figcaption>MHA, GQA, and MQA make different quality–efficiency trade-offs.</figcaption>
             </figure>
+            <p>For 32 query heads and <var>d<sub>head</sub>=128</var>:</p>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Method</th>
+                    <th>Q heads</th>
+                    <th>K/V heads</th>
+                    <th>\(d_{kv}\)</th>
+                    <th>Relative KV-cache size</th>
+                    <th>Relative K/V-projection compute</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>MHA</td><td>32</td><td>32</td><td>4096</td><td>100%</td><td>100%</td></tr>
+                  <tr><td>GQA</td><td>32</td><td>8</td><td>1024</td><td>25%</td><td>25%</td></tr>
+                  <tr><td>MQA</td><td>32</td><td>1</td><td>128</td><td>3.125%</td><td>3.125%</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>
+              The reduction applies to K/V heads—not to the query heads. Each
+              query head and the K/V head assigned to it still use the same
+              <var>d<sub>head</sub>=128</var>, so their dot-product dimensions match. What
+              changes is whether several query heads receive independent K/V
+              representations or share one.
+            </p>
+            <p>
+              GQA and MQA are not mathematically identical to MHA: sharing K/V
+              heads reduces the model's freedom to represent different
+              attention patterns. When trained for that architecture, however,
+              they can exchange a modest quality cost for a much smaller cache,
+              lower memory-bandwidth pressure, and higher Decode throughput.
+              GQA is commonly used as the middle ground.
+            </p>
+            <p>
+              The 25% and 3.125% figures apply only to the KV cache and K/V
+              projections. They do not mean that total model compute falls by
+              the same amount: the Q projection, parts of attention, the output
+              projection, and the MLP remain.
+            </p>
           </section>
 
           <section aria-labelledby="cached-token-pricing">
             <h3 id="cached-token-pricing">How Providers Price Cached Tokens</h3>
             <p>
-              Provider billing is a product policy layered on top of the
-              underlying caching mechanism and can change over time.
+              Prompt-caching prices vary by provider, model, and product. A
+              cache read and a cache write do not necessarily use the same
+              rate.
             </p>
+            <aside class="source-note">
+              <strong>Provider behavior and pricing checked August 3, 2026.</strong>
+              Always verify the linked documentation before making a cost
+              decision.
+            </aside>
+            <p>
+              For the <strong>OpenAI API</strong>, GPT-5.6-family cache writes
+              are reported in <code>cache_write_tokens</code> and billed at
+              1.25× the uncached-input rate. Earlier model families do not add
+              a separate cache-write charge, although the first uncached input
+              still costs the normal input rate. Cache reads are reported in
+              <code>cached_tokens</code> and billed at the model's cached-input
+              rate. That rate is model-specific—not a universal ratio. For
+              example, the current
+              <a href="https://developers.openai.com/api/docs/models/gpt-5.6-sol">GPT-5.6 Sol model page</a>
+              lists $5.00 per million input tokens, $0.50 per million cached
+              input tokens, and $30.00 per million output tokens.
+            </p>
+            <p>
+              <strong>Codex credits are a separate product accounting
+              system.</strong> The current
+              <a href="https://learn.chatgpt.com/docs/pricing">Codex rate card</a>
+              publishes credit costs per million input, cached-input, and
+              output tokens; it does not list a separate cache-write category.
+            </p>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Model</th>
+                    <th>Input tokens</th>
+                    <th>Cached input tokens</th>
+                    <th>Output tokens</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>GPT-5.6 Sol</td><td>125 credits</td><td>12.5 credits</td><td>750 credits</td></tr>
+                  <tr><td>GPT-5.6 Terra</td><td>50 credits</td><td>5 credits</td><td>300 credits</td></tr>
+                  <tr><td>GPT-5.6 Luna</td><td>5 credits</td><td>0.5 credits</td><td>30 credits</td></tr>
+                  <tr><td>GPT-5.5</td><td>125 credits</td><td>12.5 credits</td><td>750 credits</td></tr>
+                </tbody>
+              </table>
+            </div>
           </section>
 
           <section aria-labelledby="prompt-caching">
             <h2 id="prompt-caching">2. Prompt Caching Across Requests</h2>
             <p>
-              A normal KV cache reuses work within one generation. Prompt
-              caching extends prefix reuse across requests and conversation
-              turns.
+              A normal KV cache solves historical reuse <em>within</em> one
+              generation:
+            </p>
+            <pre><code>Multiple Decode steps in one request do not recompute earlier tokens.</code></pre>
+            <p>
+              Prompt caching extends that idea to a common prefix shared by
+              multiple requests:
+            </p>
+            <pre><code>Request A: fixed system prompt + fixed long document + question A
+Request B: fixed system prompt + fixed long document + question B</code></pre>
+            <p>
+              If the provider recognizes an eligible, exactly matching prompt
+              prefix, request B can reuse the intermediate representation or
+              K/V tensors produced when that prefix was prefetched. Only the
+              changing suffix needs a full Prefill pass.
+            </p>
+            <p>
+              A multi-turn conversation is a special case of the same pattern.
+              From the model's point of view, each API request includes the
+              previous conversation and appends new messages at the end:
+            </p>
+            <pre><code>Turn 1: System + Tools + User 1
+Turn 2: System + Tools + User 1 + Assistant 1 + User 2
+Turn 3: System + Tools + User 1 + Assistant 1 + User 2 + Assistant 2 + User 3</code></pre>
+            <p>
+              Prompt caching lets a later request reuse the Prefill work for
+              that common prefix. It does not remove the need to process the
+              new suffix, attend from current queries to historical K/V, or
+              generate output tokens.
             </p>
           </section>
 
           <section aria-labelledby="openai-prompt-caching">
             <h3 id="openai-prompt-caching">OpenAI Prompt Caching Requirements</h3>
             <p>
-              OpenAI-specific behavior belongs in a dated provider note rather
-              than in the model-independent explanation.
+              The following details are OpenAI-specific and were verified
+              against the official
+              <a href="https://developers.openai.com/api/docs/guides/prompt-caching">Prompt Caching guide</a>
+              on August 3, 2026.
+            </p>
+            <ol>
+              <li>
+                <strong>Minimum length.</strong> GPT-5.6 and later families
+                require a cacheable prefix of at least 1,024 tokens. GPT-5.5
+                and earlier models vary by model, typically between 1,024 and
+                2,048 tokens. Requests below 1,024 tokens still return a
+                <code>cached_tokens</code> field, but its value is zero.
+              </li>
+              <li>
+                <strong>Default breakpoint.</strong> GPT-5.6 uses
+                <code>implicit</code> mode by default and places an implicit
+                breakpoint at the latest user or tool message. It does not
+                automatically fall back to an earlier, unmarked longest common
+                prefix. If that breakpoint includes a timestamp, tool history,
+                or current question that changes every turn,
+                <code>cached_tokens</code> can be zero even when thousands of
+                earlier tokens match.
+              </li>
+              <li>
+                <strong>Explicit breakpoint.</strong> Put a
+                <code>prompt_cache_breakpoint</code> at the end of stable
+                content and reuse the same <code>prompt_cache_key</code> for
+                requests that share it. Setting
+                <code>prompt_cache_options.mode="explicit"</code> disables the
+                implicit breakpoint, preventing the changing suffix from being
+                repeatedly written to cache.
+              </li>
+            </ol>
+            <pre><code>stable prefix: System Prompt + Tools + fixed documents
+                                                  ↑ prompt_cache_breakpoint
+--------------------------------------------------------------------------
+dynamic suffix: timestamp + tool results + this turn's user question</code></pre>
+            <p>
+              The <code>prompt_cache_key</code> also participates in routing.
+              GPT-5.6 and later require it for their more reliable implicit or
+              explicit matching. OpenAI currently recommends keeping total
+              traffic across all prefixes for one key near 15 requests per
+              minute. Higher-volume workloads should partition traffic across
+              stable keys; otherwise some requests may route away from the
+              machine that holds the matching prefix.
+            </p>
+            <p>
+              The current GPT-5.6 cache TTL is controlled by
+              <code>prompt_cache_options.ttl</code>. The only supported value
+              is <code>30m</code>, which is also the default minimum lifetime;
+              OpenAI may retain an entry longer.
             </p>
           </section>
 
           <section aria-labelledby="improving-cache-hit-rate">
             <h3 id="improving-cache-hit-rate">How to Improve the Cached-Token Hit Rate</h3>
+            <p>First, separate two metrics that are easy to conflate:</p>
+            <ul>
+              <li>
+                <strong>Request hit rate:</strong> the fraction of requests
+                that read at least some cached content.
+              </li>
+              <li>
+                <strong>Token hit rate:</strong> the fraction of all input
+                tokens that were read from cache.
+              </li>
+            </ul>
+            <div class="math-block">
+              \[
+              token\ hit\ rate=
+              \frac{cached\ input\ tokens}{total\ input\ tokens}
+              \]
+            </div>
             <p>
-              Place the most stable, broadly reusable content first and the
-              most dynamic, request-specific content last.
+              In plain language, divide cached input tokens by total input
+              tokens.
+            </p>
+            <p>
+              Token hit rate is usually the more useful measure. A 10,000-token
+              request that reuses only its first 100 tokens still counts as a
+              cache-hit request, but almost all of its input still requires
+              Prefill.
+            </p>
+            <p>
+              The central rule is simple: <strong>put the most stable,
+              broadly reusable content first, and the most dynamic, local
+              content last.</strong>
+            </p>
+            <p>For an exact-prefix cache, organize a request roughly as:</p>
+            <pre><code>fixed system instructions and stable tool definitions
+→ project-, tenant-, or knowledge-base context
+→ session context
+→ conversation messages and tool results
+→ this turn's user input and dynamic state</code></pre>
+            <p>
+              Once a token changes, content after that point normally cannot
+              continue the same exact-prefix match—even if some later text is
+              identical. What matters is not how much repeated material exists
+              somewhere in the prompt, but how long the prompt remains
+              continuously identical from the beginning.
             </p>
           </section>
 
           <section aria-labelledby="cache-breaking-patterns">
             <h3 id="cache-breaking-patterns">Common Cache-Breaking Patterns</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Pattern that lowers hit rate</th><th>Why it fails</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Switching models in the middle of a long session</td>
+                    <td>Prompt caches are normally model-specific; the new model has to build its own cache.</td>
+                  </tr>
+                  <tr>
+                    <td>Putting timestamps, request IDs, random values, or live state near the front</td>
+                    <td>The prefix changes early, so the stable content after it can no longer extend the match.</td>
+                  </tr>
+                  <tr>
+                    <td>Randomizing tool order or adding, removing, or editing tool schemas mid-session</td>
+                    <td>Tools are normally part of the stable prefix; content and serialization order both matter.</td>
+                  </tr>
+                  <tr>
+                    <td>Rewriting the system prompt to enter a mode</td>
+                    <td>The system prompt appears first, so changing it can invalidate the context that follows.</td>
+                  </tr>
+                  <tr>
+                    <td>Using a different system prompt, tool set, or history structure for summarization or a fork</td>
+                    <td>The branch diverges at the beginning and cannot read the parent's long cached prefix.</td>
+                  </tr>
+                  <tr>
+                    <td>Waiting beyond the cache's effective TTL</td>
+                    <td>The cached prefix has been evicted and must be created again.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
             <p>
-              Early changes to an exact-matched prefix reduce how much work a
-              later request can reuse.
+              The prompt layout used by Claude Code is a practical example of
+              the same stable-to-dynamic ordering:
             </p>
             <figure>
               <img
@@ -195,6 +717,29 @@
               >
               <figcaption>Stable instructions come first; dynamic conversation state grows at the end.</figcaption>
             </figure>
+            <ul>
+              <li>Stable system instructions and tools come first.</li>
+              <li>Project and session context sit in the middle.</li>
+              <li>The growing conversation is appended at the end.</li>
+            </ul>
+            <p>
+              Claude Code expresses Plan Mode and other state changes by
+              appending messages rather than rewriting the prefix. It keeps
+              lightweight tool definitions stable and defers full schemas
+              until they are needed. For compaction, the summarization request
+              inherits the parent's system prompt, tools, and conversation
+              prefix, then appends the compaction instruction. That makes the
+              fork cache-safe. Anthropic describes these decisions in
+              <a href="https://claude.com/blog/lessons-from-building-claude-code-prompt-caching-is-everything">Lessons from building Claude Code: Prompt caching is everything</a>.
+            </p>
+            <p class="callout">
+              A higher token hit rate usually reduces repeated Prefill work,
+              but it does not guarantee a proportional reduction in total cost
+              or end-to-end latency. The first cache write may cost extra, the
+              cache has a finite lifetime, unmatched suffixes still require
+              computation, and output tokens are not part of the cached-input
+              discount.
+            </p>
           </section>
         </article>
       </main>

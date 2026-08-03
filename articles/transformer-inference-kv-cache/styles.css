@@ -209,6 +209,22 @@ h3 {
   color: #374b59;
 }
 
+.callout,
+.source-note {
+  margin-block: 30px;
+  padding: 20px 22px;
+  border: 1px solid #bfd1dc;
+  border-radius: 10px;
+  background: #e8f2f5;
+  color: #294653;
+}
+
+.source-note {
+  border-color: #d8d3b7;
+  background: #f7f4e8;
+  color: #4f4935;
+}
+
 section {
   padding-top: clamp(58px, 8vw, 88px);
 }

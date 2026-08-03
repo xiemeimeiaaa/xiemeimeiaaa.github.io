@@ -78,3 +78,39 @@ test("article navigation selects the visible heading nearest the top", () => {
   assert.equal(selectActiveHeading(entries), "mha-gqa-mqa");
   assert.equal(selectActiveHeading([]), null);
 });
+
+test("article retains the source derivations and worked examples", async () => {
+  const html = await readFile(articleUrl, "utf8");
+  const normalized = html.replace(/\s+/g, " ");
+  for (const requiredText of [
+    "12 MACs",
+    "128 KiB per token",
+    "512 MiB",
+    "2 GiB",
+    "3.125%",
+    "cached input tokens",
+    "total input tokens",
+  ]) {
+    assert.match(normalized, new RegExp(requiredText.replace("%", "\\%"), "i"));
+  }
+});
+
+test("provider-specific claims link to primary documentation", async () => {
+  const html = await readFile(articleUrl, "utf8");
+  assert.match(
+    html,
+    /https:\/\/developers\.openai\.com\/api\/docs\/guides\/prompt-caching/,
+  );
+  assert.match(
+    html,
+    /https:\/\/developers\.openai\.com\/api\/docs\/models\/gpt-5\.6-sol/,
+  );
+  assert.match(
+    html,
+    /https:\/\/learn\.chatgpt\.com\/docs\/pricing/,
+  );
+  assert.match(
+    html,
+    /https:\/\/claude\.com\/blog\/lessons-from-building-claude-code-prompt-caching-is-everything/,
+  );
+});
