@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 
 import { selectActiveHeading } from "../articles/transformer-inference-kv-cache/script.js";
 
@@ -54,6 +54,21 @@ test("article references three English illustrations with alt text", async () =>
   const imageTags = html.match(/<img\b[^>]*>/g) ?? [];
   assert.equal(imageTags.length, 3);
   assert.ok(imageTags.every((tag) => /\balt="[^"]+"/.test(tag)));
+});
+
+test("all referenced article illustrations exist", async () => {
+  for (const name of [
+    "qkv-relationship.png",
+    "mha-gqa-mqa.png",
+    "system-prompt-layout.png",
+  ]) {
+    await access(
+      new URL(
+        `../articles/transformer-inference-kv-cache/assets/${name}`,
+        import.meta.url,
+      ),
+    );
+  }
 });
 
 test("article navigation selects the visible heading nearest the top", () => {
