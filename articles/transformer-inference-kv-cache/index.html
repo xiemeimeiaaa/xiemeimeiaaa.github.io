@@ -7,7 +7,7 @@
       name="description"
       content="How Transformer LLMs use Prefill, Decode, the KV cache, and prompt caching to generate text efficiently."
     >
-    <meta name="theme-color" content="#eef3f8">
+    <meta name="theme-color" content="#fcfcfb">
     <meta property="og:type" content="article">
     <meta
       property="og:title"
@@ -25,53 +25,50 @@
       rel="canonical" href="https://xiemeimeiaaa.github.io/articles/transformer-inference-kv-cache/"
     >
     <title>How Transformer LLMs Generate Text: Prefill, Decode, and the KV Cache</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="/styles.css">
     <script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js"></script>
-    <script type="module" src="script.js"></script>
+    <script type="module" src="/script.js"></script>
   </head>
   <body>
     <a class="skip-link" href="#article-content">Skip to article</a>
 
     <header class="site-header">
-      <div class="shell header-inner">
-        <a class="site-name" href="/">MEI / 梅</a>
-        <a class="library-link" href="/">Back to Library</a>
+      <div class="site-shell header-inner">
+        <a class="site-name" href="/" data-i18n="siteName">XIE MEI / 谢媚</a>
+        <nav class="site-nav" data-i18n-aria="primaryNavAria" aria-label="Primary navigation">
+          <a href="/#articles" data-i18n="articlesNav">Articles</a>
+          <a
+            href="https://github.com/xiemeimeiaaa"
+            data-i18n="githubLabel"
+            data-i18n-aria="githubAria"
+            aria-label="Visit Xie Mei's GitHub profile"
+          >GitHub</a>
+          <button
+            class="language-switch"
+            type="button"
+            data-language-switch
+            data-i18n="switchLabel"
+            data-i18n-aria="switchLabel"
+            aria-label="中文 · EN"
+          >中文 · EN</button>
+        </nav>
       </div>
     </header>
 
-    <div class="shell article-layout">
-      <aside class="contents-panel">
-        <nav aria-label="Article contents">
-          <p class="contents-label">On this page</p>
-          <ol>
-            <li><a href="#prefill-and-decode">Prefill and Decode</a></li>
-            <li><a href="#prefill">Prefill</a></li>
-            <li><a href="#decode">Decode</a></li>
-            <li><a href="#compute-savings">Compute savings</a></li>
-            <li><a href="#memory-cost">Memory cost</a></li>
-            <li><a href="#mha-gqa-mqa">MHA, GQA, and MQA</a></li>
-            <li><a href="#cached-token-pricing">Cached-token pricing</a></li>
-            <li><a href="#prompt-caching">Prompt caching</a></li>
-            <li><a href="#openai-prompt-caching">OpenAI requirements</a></li>
-            <li><a href="#improving-cache-hit-rate">Improving hit rate</a></li>
-            <li><a href="#cache-breaking-patterns">Cache-breaking patterns</a></li>
-          </ol>
-        </nav>
-      </aside>
-
-      <main id="article-content">
-        <article>
+    <main id="article-content" class="site-shell article-main">
+        <article class="article-page" lang="en">
           <header class="article-header">
-            <p class="eyebrow">LLM INFERENCE</p>
-            <h1>How Transformer LLMs Generate Text: Prefill, Decode, and the KV Cache</h1>
+            <a class="back-link" href="/#articles" data-i18n="articlesNav">Articles</a>
+            <h1 class="article-title">How Transformer LLMs Generate Text: Prefill, Decode, and the KV Cache</h1>
             <p class="dek">
               How does a trained Transformer generate text one token at a
               time—and how does the KV cache keep it from recomputing the
               same prefix at every step?
             </p>
             <div class="article-meta">
-              <time datetime="2026-08-03">August 2026</time>
-              <span>18 min read</span>
+              <time datetime="2026-08-03" data-i18n="article2Date">AUG 2026</time>
+              <span aria-hidden="true">•</span>
+              <span data-i18n="article2ReadingTime">18 MIN READ</span>
             </div>
             <p class="prerequisite">
               This article starts with a trained model. For embeddings,
@@ -743,12 +740,11 @@ dynamic suffix: timestamp + tool results + this turn's user question</code></pre
           </section>
         </article>
       </main>
-    </div>
 
     <footer class="site-footer">
-      <div class="shell footer-inner">
-        <a href="/">← Back to the Knowledge Library</a>
-        <a href="https://github.com/xiemeimeiaaa">GitHub ↗</a>
+      <div class="site-shell footer-inner">
+        <p data-i18n="footer">More writing will appear here over time.</p>
+        <a href="/#articles" data-i18n="articlesNav">Articles</a>
       </div>
     </footer>
   </body>

@@ -1,6 +1,8 @@
 export const translations = {
   en: {
-    siteName: "MEI / 梅",
+    siteName: "XIE MEI / 谢媚",
+    articlesNav: "Articles",
+    githubLabel: "GitHub",
     switchLabel: "中文 · EN",
     kicker: "WRITING & NOTES",
     heading: "Knowledge Library",
@@ -22,10 +24,13 @@ export const translations = {
       "Prefill, Decode, the KV cache, and prompt caching—from compute savings to memory trade-offs.",
     article2Aria: "Read “How Transformer LLMs Generate Text”",
     footer: "More writing will appear here over time.",
-    githubAria: "Visit Mei's GitHub profile",
+    githubAria: "Visit Xie Mei's GitHub profile",
+    primaryNavAria: "Primary navigation",
   },
   zh: {
-    siteName: "MEI / 梅",
+    siteName: "XIE MEI / 谢媚",
+    articlesNav: "文章",
+    githubLabel: "GitHub",
     switchLabel: "中文 · EN",
     kicker: "写作与笔记",
     heading: "知识库",
@@ -46,7 +51,8 @@ export const translations = {
       "从 Prefill、Decode 与 KV Cache，到计算节省、显存代价和 Prompt Cache。",
     article2Aria: "阅读《Transformer LLM 如何生成文本》",
     footer: "更多文章会陆续整理在这里。",
-    githubAria: "访问 Mei 的 GitHub 主页",
+    githubAria: "访问谢媚的 GitHub 主页",
+    primaryNavAria: "主导航",
   },
 };
 
@@ -64,7 +70,10 @@ export function applyLanguage(root, language) {
 
   for (const element of root.querySelectorAll("[data-i18n]")) {
     const value = copy[element.dataset.i18n];
-    if (value !== undefined) element.textContent = value;
+    if (value !== undefined) {
+      element.textContent = value;
+      element.setAttribute("lang", selectedLanguage);
+    }
   }
 
   for (const element of root.querySelectorAll("[data-i18n-aria]")) {

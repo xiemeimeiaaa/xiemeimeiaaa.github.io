@@ -2,8 +2,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 
-import { selectActiveHeading } from "../articles/transformer-inference-kv-cache/script.js";
-
 const articleUrl = new URL(
   "../articles/transformer-inference-kv-cache/index.html",
   import.meta.url,
@@ -18,8 +16,9 @@ test("article exposes metadata and semantic landmarks", async () => {
     /rel="canonical" href="https:\/\/xiemeimeiaaa\.github\.io\/articles\/transformer-inference-kv-cache\/"/,
   );
   assert.match(html, /<main[^>]*>/);
-  assert.match(html, /<article[^>]*>/);
-  assert.match(html, /<nav[^>]*aria-label="Article contents"/);
+  assert.match(html, /<article class="article-page" lang="en">/);
+  assert.match(html, /<h1 class="article-title">/);
+  assert.doesNotMatch(html, /class="contents-panel"/);
 });
 
 test("article links to the internal Transformer beginners prerequisite", async () => {
@@ -81,29 +80,6 @@ test("all referenced article illustrations exist", async () => {
       ),
     );
   }
-});
-
-test("article navigation selects the visible heading nearest the top", () => {
-  const entries = [
-    {
-      isIntersecting: true,
-      boundingClientRect: { top: 320 },
-      target: { id: "memory-cost" },
-    },
-    {
-      isIntersecting: false,
-      boundingClientRect: { top: 40 },
-      target: { id: "compute-savings" },
-    },
-    {
-      isIntersecting: true,
-      boundingClientRect: { top: 120 },
-      target: { id: "mha-gqa-mqa" },
-    },
-  ];
-
-  assert.equal(selectActiveHeading(entries), "mha-gqa-mqa");
-  assert.equal(selectActiveHeading([]), null);
 });
 
 test("article retains the source derivations and worked examples", async () => {

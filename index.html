@@ -5,36 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta
       name="description"
-      content="Mei's bilingual knowledge library about language models, AI agents, and software engineering."
+      content="Xie Mei's bilingual technical writing about language models, AI agents, and software engineering."
     >
-    <meta name="theme-color" content="#eef3f8">
-    <title>Knowledge Library — MEI / 梅</title>
-    <link rel="stylesheet" href="styles.css">
-    <script type="module" src="script.js"></script>
+    <meta name="theme-color" content="#fcfcfb">
+    <title>Knowledge Library — XIE MEI / 谢媚</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script type="module" src="/script.js"></script>
   </head>
   <body>
     <a class="skip-link" href="#articles">Skip to articles</a>
 
     <header class="site-header">
-      <div class="shell header-inner">
-        <a class="site-name" href="/" data-i18n="siteName">MEI / 梅</a>
-        <button
-          class="language-switch"
-          type="button"
-          data-language-switch
-          data-i18n="switchLabel"
-          data-i18n-aria="switchLabel"
-          aria-label="中文 · EN"
-        >
-          中文 · EN
-        </button>
+      <div class="site-shell header-inner">
+        <a class="site-name" href="/" data-i18n="siteName">XIE MEI / 谢媚</a>
+        <nav class="site-nav" data-i18n-aria="primaryNavAria" aria-label="Primary navigation">
+          <a href="#articles" data-i18n="articlesNav">Articles</a>
+          <a
+            href="https://github.com/xiemeimeiaaa"
+            data-i18n="githubLabel"
+            data-i18n-aria="githubAria"
+            aria-label="Visit Xie Mei's GitHub profile"
+          >GitHub</a>
+          <button
+            class="language-switch"
+            type="button"
+            data-language-switch
+            data-i18n="switchLabel"
+            data-i18n-aria="switchLabel"
+            aria-label="中文 · EN"
+          >中文 · EN</button>
+        </nav>
       </div>
     </header>
 
-    <main class="shell">
+    <main class="site-shell home-main">
       <section class="intro" aria-labelledby="page-heading">
-        <p class="eyebrow" data-i18n="kicker">WRITING &amp; NOTES</p>
-        <h1 id="page-heading" data-i18n="heading">Knowledge Library</h1>
+        <h1 class="home-title" id="page-heading" data-i18n="heading">Knowledge Library</h1>
         <p class="intro-copy" data-i18n="description">
           Clear explanations of language models, AI agents, and software
           engineering—built from first principles.
@@ -47,68 +53,52 @@
           <span class="article-count" data-i18n="count">2 articles</span>
         </div>
 
-        <article class="article-card">
-          <a
-            class="article-link"
-            href="articles/transformer-inference-kv-cache/"
-            data-i18n-aria="article2Aria"
-            aria-label="Read “How Transformer LLMs Generate Text”"
-          >
-            <div class="article-meta" aria-hidden="true">
-              <span class="topic" data-i18n="topic">LLMs</span>
-              <span data-i18n="article2Date">AUG 2026</span>
-              <span data-i18n="article2ReadingTime">18 MIN READ</span>
-            </div>
-            <div class="article-body">
-              <div>
-                <h3 data-i18n="article2Title">
-                  How Transformer LLMs Generate Text
-                </h3>
-                <p data-i18n="article2Summary">
-                  Prefill, Decode, the KV cache, and prompt caching—from
-                  compute savings to memory trade-offs.
-                </p>
-              </div>
-              <span class="article-arrow" aria-hidden="true">↗</span>
-            </div>
-          </a>
+        <article class="post-entry">
+          <h3 class="post-title">
+            <a
+              href="articles/transformer-inference-kv-cache/"
+              data-i18n="article2Title"
+              data-i18n-aria="article2Aria"
+              aria-label="Read “How Transformer LLMs Generate Text”"
+            >How Transformer LLMs Generate Text</a>
+          </h3>
+          <div class="post-meta">
+            <time datetime="2026-08-03" data-i18n="article2Date">AUG 2026</time>
+            <span aria-hidden="true">•</span>
+            <span data-i18n="article2ReadingTime">18 MIN READ</span>
+          </div>
+          <p class="post-summary" data-i18n="article2Summary">
+            Prefill, Decode, the KV cache, and prompt caching—from compute
+            savings to memory trade-offs.
+          </p>
         </article>
 
-        <article class="article-card">
-          <a
-            class="article-link"
-            href="articles/transformer-llms-for-beginners/"
-            data-i18n-aria="articleAria"
-            aria-label="Read “Transformer LLMs for Beginners”"
-          >
-            <div class="article-meta" aria-hidden="true">
-              <span class="topic" data-i18n="topic">LLMs</span>
-              <span data-i18n="date">AUG 2026</span>
-              <span data-i18n="readingTime">15 MIN READ</span>
-            </div>
-            <div class="article-body">
-              <div>
-                <h3 data-i18n="articleTitle">Transformer LLMs for Beginners</h3>
-                <p data-i18n="articleSummary">
-                  From tokens and attention to logits, loss, backpropagation,
-                  and weight updates.
-                </p>
-              </div>
-              <span class="article-arrow" aria-hidden="true">↗</span>
-            </div>
-          </a>
+        <article class="post-entry">
+          <h3 class="post-title">
+            <a
+              href="articles/transformer-llms-for-beginners/"
+              data-i18n="articleTitle"
+              data-i18n-aria="articleAria"
+              aria-label="Read “Transformer LLMs for Beginners”"
+            >Transformer LLMs for Beginners</a>
+          </h3>
+          <div class="post-meta">
+            <time datetime="2026-08-01" data-i18n="date">AUG 2026</time>
+            <span aria-hidden="true">•</span>
+            <span data-i18n="readingTime">15 MIN READ</span>
+          </div>
+          <p class="post-summary" data-i18n="articleSummary">
+            From tokens and attention to logits, loss, backpropagation, and
+            weight updates.
+          </p>
         </article>
       </section>
     </main>
 
     <footer class="site-footer">
-      <div class="shell footer-inner">
+      <div class="site-shell footer-inner">
         <p data-i18n="footer">More writing will appear here over time.</p>
-        <a
-          href="https://github.com/xiemeimeiaaa"
-          data-i18n-aria="githubAria"
-          aria-label="Visit Mei's GitHub profile"
-        >GitHub ↗</a>
+        <a href="#articles" data-i18n="articlesNav">Articles</a>
       </div>
     </footer>
   </body>

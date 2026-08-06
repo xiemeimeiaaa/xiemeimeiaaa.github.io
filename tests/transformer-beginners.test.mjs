@@ -30,15 +30,17 @@ test("migrated article exposes its canonical route and semantic landmarks", asyn
     /property="og:url" content="https:\/\/xiemeimeiaaa\.github\.io\/articles\/transformer-llms-for-beginners\/"/,
   );
   assert.match(html, /<main\b[^>]*>/);
-  assert.match(html, /<article\b[^>]*>/);
+  assert.match(html, /<article class="article-page" lang="en">/);
+  assert.match(html, /<h1 class="article-title"/);
 });
 
-test("migrated article returns readers to the main library", async () => {
+test("migrated article uses the shared site header", async () => {
   const html = await readFile(articleUrl, "utf8");
   assert.match(
     html,
-    /<a\b[^>]*class="home-link"[^>]*href="\/"[^>]*>返回主页 \/ Back to Library<\/a>/,
+    /<a\b[^>]*class="site-name"[^>]*data-i18n="siteName"[^>]*>XIE MEI \/ 谢媚<\/a>/,
   );
+  assert.doesNotMatch(html, /class="home-link"/);
 });
 
 test("migrated article references all seven local diagrams with alt text", async () => {

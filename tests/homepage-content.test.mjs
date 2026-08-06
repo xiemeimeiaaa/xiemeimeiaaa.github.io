@@ -14,10 +14,11 @@ test("homepage links to both Transformer articles", () => {
     /href="https:\/\/xiemeimeiaaa\.github\.io\/transformer-llms-for-beginners\/"/,
   );
   assert.match(html, /articles\/transformer-inference-kv-cache\//);
-  assert.equal((html.match(/class="article-card"/g) ?? []).length, 2);
+  assert.equal((html.match(/class="post-entry"/g) ?? []).length, 2);
+  assert.doesNotMatch(html, /class="article-card"/);
 });
 
-test("new article card exposes localized copy and an accessible label", () => {
+test("post list exposes localized copy and accessible labels", () => {
   for (const key of [
     "article2Title",
     "article2Summary",
