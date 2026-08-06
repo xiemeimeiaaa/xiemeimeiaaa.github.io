@@ -5,7 +5,14 @@ import { readFile } from "node:fs/promises";
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 
 test("homepage links to both Transformer articles", () => {
-  assert.match(html, /transformer-llms-for-beginners\//);
+  assert.match(
+    html,
+    /href="articles\/transformer-llms-for-beginners\/"/,
+  );
+  assert.doesNotMatch(
+    html,
+    /href="https:\/\/xiemeimeiaaa\.github\.io\/transformer-llms-for-beginners\/"/,
+  );
   assert.match(html, /articles\/transformer-inference-kv-cache\//);
   assert.equal((html.match(/class="article-card"/g) ?? []).length, 2);
 });

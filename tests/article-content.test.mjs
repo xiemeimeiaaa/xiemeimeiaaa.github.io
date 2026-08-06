@@ -22,6 +22,18 @@ test("article exposes metadata and semantic landmarks", async () => {
   assert.match(html, /<nav[^>]*aria-label="Article contents"/);
 });
 
+test("article links to the internal Transformer beginners prerequisite", async () => {
+  const html = await readFile(articleUrl, "utf8");
+  assert.match(
+    html,
+    /href="\/articles\/transformer-llms-for-beginners\/"/,
+  );
+  assert.doesNotMatch(
+    html,
+    /href="https:\/\/xiemeimeiaaa\.github\.io\/transformer-llms-for-beginners\/"/,
+  );
+});
+
 test("article preserves the source section order", async () => {
   const html = await readFile(articleUrl, "utf8");
   const ids = [

@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10.1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="description" content="A visual introduction to decoder-only Transformer language models, from tokenization and attention to loss, backpropagation, and weight updates." />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="Transformer LLMs for Beginners" />
+  <meta property="og:description" content="Follow the complete Transformer training path from tokens to attention, logits, loss, and gradient-based learning." />
+  <meta property="og:url" content="https://xiemeimeiaaa.github.io/articles/transformer-llms-for-beginners/" />
+  <link rel="canonical" href="https://xiemeimeiaaa.github.io/articles/transformer-llms-for-beginners/" />
+  <title>Transformer LLMs for Beginners</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: 1.5em;}
+    div.column{flex: auto;}
+    @media screen {
+    div.columns{gap: min(4vw, 1.5em);}
+    div.column{overflow-x: auto;}
+    }
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+  <link rel="stylesheet" href="styles.css" />
+  <script defer=""
+  src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js"
+  type="text/javascript"></script>
+</head>
+<body>
+<nav class="site-navigation" aria-label="Site navigation">
+<a class="home-link" href="/">返回主页 / Back to Library</a>
+</nav>
+<main id="article-content">
+<article>
+<h1 id="transformer-llms-for-beginners">Transformer LLMs for
+Beginners</h1>
+<p><em>How does a decoder-only Transformer turn a sequence of tokens
+into next-token predictions? And once it makes a prediction, how does
+the error travel backward through the network to update billions of
+parameters? This article follows the entire path—from tokenization to
+attention, logits, loss, and gradient-based learning.</em></p>
+<p>Inference introduces another set of ideas—prefill, autoregressive
+decoding, and the KV cache. Those deserve their own treatment, so here
+we will stay focused on the Transformer itself and what happens during
+training.</p>
+<h2 id="what-is-the-model-actually-learning">1. What Is the Model
+Actually Learning?</h2>
+<p>GPT-style language models are <strong>autoregressive</strong>: at
+each position, the model uses the tokens that came before it to predict
+the next token.</p>
+<p>Suppose a tokenizer produces the following sequence:</p>
+<pre class="text"><code>I    like    eating    apples    &lt;EOS&gt;</code></pre>
+<p>During training, the input and target are shifted by one
+position:</p>
+<table>
+<thead>
+<tr>
+<th>Context available at this position</th>
+<th>Prediction target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>I</td>
+<td>like</td>
+</tr>
+<tr>
+<td>I, like</td>
+<td>eating</td>
+</tr>
+<tr>
+<td>I, like, eating</td>
+<td>apples</td>
+</tr>
+<tr>
+<td>I, like, eating, apples</td>
+<td><code>&lt;EOS&gt;</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>&lt;EOS&gt;</code>—the end-of-sequence marker—is itself a
+token. The model must learn when a sequence should end; the application
+does not simply stop generation after an arbitrary word.</p>
+<p>The complete target sequence is already known during training. That
+means the GPU can process all token positions in parallel. A
+<strong>causal mask</strong> still ensures that each position can attend
+only to itself and earlier tokens, so the model cannot peek at the
+answer it is supposed to predict.</p>
+<p>This is what parallelism means in the training phase—and during the
+prefill stage of inference. Within a single Transformer layer, the model
+can compute</p>
+<p><span class="math display">\[
+Q=XW_Q,\qquad K=XW_K,\qquad V=XW_V
+\]</span></p>
+<p>for every known token at once. Predicting token 2 from token 1 and
+predicting token <span class="math inline">\(n\)</span> from tokens 1
+through <span class="math inline">\(n-1\)</span> are represented in one
+parallel computation.</p>
+<p>Autoregressive decoding is different. The next token does not exist
+yet. The model must predict it, append it to the context, and then
+repeat the process. That dependency makes decoding sequential across
+generated tokens.</p>
+<h2 id="turning-text-into-the-transformers-initial-state">2. Turning
+Text Into the Transformer’s Initial State</h2>
+<h3 id="tokenization-from-text-to-ids">2.1 Tokenization: From Text to
+IDs</h3>
+<p>A Transformer does not operate directly on strings. A tokenizer first
+converts text into token IDs. Algorithms such as Byte-Pair Encoding
+(BPE) merge frequent text fragments into tokens while splitting rare or
+unseen words into smaller subwords, characters, or byte-level
+pieces.</p>
+<p>A simplified example might look like this:</p>
+<pre class="text"><code>&quot;I like apples&quot; → [token_17, token_263, token_981]</code></pre>
+<p>These integers are identifiers, not semantic representations. The
+next step turns each ID into a vector.</p>
+<h3 id="embeddings-from-ids-to-vectors">2.2 Embeddings: From IDs to
+Vectors</h3>
+<p>For every token ID, the model retrieves one row from a trainable
+embedding matrix:</p>
+<p><span class="math display">\[
+x_i=E[token_i]
+\]</span></p>
+<p>The resulting vector gives the model a continuous representation it
+can transform and combine with other token representations.</p>
+<h3 id="the-model-also-needs-position">2.3 The Model Also Needs
+Position</h3>
+<p>Token embeddings alone do not distinguish “I like you” from “you like
+me.” The model needs information about token order.</p>
+<p>Different architectures provide it in different ways:</p>
+<ul>
+<li>learned absolute position embeddings;</li>
+<li>fixed positional encodings;</li>
+<li>relative-position methods;</li>
+<li>Rotary Position Embeddings (RoPE), which rotate the query and key
+representations instead of adding a position vector directly to the
+token embedding.</li>
+</ul>
+<p>Let the representation entering the first Transformer layer be</p>
+<p><span class="math display">\[
+H^{(0)}=X
+\]</span></p>
+<p>For a sequence of length <span class="math inline">\(n\)</span> and a
+hidden size of <span class="math inline">\(d_{model}\)</span>,</p>
+<p><span class="math display">\[
+H^{(0)}\in\mathbb{R}^{n\times d_{model}}
+\]</span></p>
+<p>Each row is the initial hidden vector for one token. In a model that
+uses RoPE, <span class="math inline">\(H^{(0)}\)</span> is typically the
+token embedding itself; positional information is applied later, when
+each layer constructs its queries and keys.</p>
+<p>The notation <span class="math inline">\(\mathbb{R}^{n\times
+d_{model}}\)</span> simply describes the matrix shape: there are <span
+class="math inline">\(n\)</span> token rows, and every row contains
+<span class="math inline">\(d_{model}\)</span> values.</p>
+<h3 id="context-length-stride-and-batch-size">2.4 Context Length,
+Stride, and Batch Size</h3>
+<p>The <strong>context length</strong> is the maximum number of tokens
+the model can accept in one sequence. During training, long documents
+are usually divided into fixed-length windows.</p>
+<ul>
+<li>If <code>stride &lt; context length</code>, adjacent windows
+overlap.</li>
+<li>If <code>stride = context length</code>, the windows are contiguous
+and do not overlap.</li>
+<li>If <code>stride &gt; context length</code>, gaps appear and some
+tokens are skipped.</li>
+</ul>
+<p>The <strong>batch size</strong> is the number of training examples
+processed in one training step. Larger batches can improve hardware
+throughput, but they use more memory and do not automatically produce a
+better model.</p>
+<p>At this point, a batch of discrete token IDs has become the initial
+hidden state <span class="math inline">\(H^{(0)}\)</span>. Now we can
+follow that state through one Transformer block.</p>
+<h2 id="inside-a-transformer-block">3. Inside a Transformer Block</h2>
+<h3
+id="hidden-states-travel-between-layers-q-k-and-v-live-inside-a-layer">3.1
+Hidden States Travel Between Layers; Q, K, and V Live Inside a
+Layer</h3>
+<p>Layer <span class="math inline">\(l\)</span> receives the previous
+layer’s output:</p>
+<p><span class="math display">\[
+H^{(l-1)}
+\]</span></p>
+<p>The hidden state <span class="math inline">\(H\)</span> is the
+representation passed from one layer to the next. It is not the same
+thing as the queries, keys, and values.</p>
+<p>In a common Pre-Norm architecture, the layer first normalizes its
+input:</p>
+<p><span class="math display">\[
+U^{(l)}=\operatorname{Norm}(H^{(l-1)})
+\]</span></p>
+<p>It then uses its own learned parameter matrices to project that
+normalized state into queries, keys, and values:</p>
+<p><span class="math display">\[
+\begin{aligned}
+Q^{(l)} &amp;= U^{(l)}W_Q^{(l)} \\
+K^{(l)} &amp;= U^{(l)}W_K^{(l)} \\
+V^{(l)} &amp;= U^{(l)}W_V^{(l)}
+\end{aligned}
+\]</span></p>
+<p>The distinction is fundamental:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Object</th>
+<th>What it is</th>
+<th>Fixed during inference?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="math inline">\(W_Q^{(l)}, W_K^{(l)},
+W_V^{(l)}\)</span></td>
+<td>Learned parameter matrices in layer <span
+class="math inline">\(l\)</span></td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><span class="math inline">\(Q^{(l)}, K^{(l)}, V^{(l)}\)</span></td>
+<td>Activations computed from the current input</td>
+<td>No; they change with the input</td>
+</tr>
+</tbody>
+</table>
+<p>Different layers have different parameters. In general,</p>
+<p><span class="math display">\[
+W_Q^{(1)}\ne W_Q^{(2)}
+\]</span></p>
+<h3
+id="queries-and-keys-decide-where-to-look-values-supply-what-to-retrieve">3.2
+Queries and Keys Decide <em>Where</em> to Look; Values Supply
+<em>What</em> to Retrieve</h3>
+<p>The hidden state <span class="math inline">\(H\)</span> is already a
+matrix of token representations. Why project it into three more
+representations?</p>
+<p>Because attention asks each token to play three distinct roles:</p>
+<ul>
+<li><strong>Query (Q):</strong> What information is this position
+looking for?</li>
+<li><strong>Key (K):</strong> What features does each position expose
+for matching?</li>
+<li><strong>Value (V):</strong> What content should be returned if the
+match is strong?</li>
+</ul>
+<p><span class="math inline">\(H\)</span> is a token’s combined state.
+“What I need,” “how others can find me,” and “what I will contribute”
+are different jobs. <span class="math inline">\(W_Q\)</span>, <span
+class="math inline">\(W_K\)</span>, and <span
+class="math inline">\(W_V\)</span> do not cut <span
+class="math inline">\(H\)</span> into three pieces; they project the
+same state into three separately learned representation spaces. This
+lets the model separate the criteria used for matching from the content
+that is eventually transmitted.</p>
+<p>For a query at position <span class="math inline">\(i\)</span> and a
+key at position <span class="math inline">\(j\)</span>, the raw
+attention score is</p>
+<p><span class="math display">\[
+s_{ij}=Q_iK_j^T
+\]</span></p>
+<p>This score measures how well <span class="math inline">\(Q_i\)</span>
+matches <span class="math inline">\(K_j\)</span> in the representation
+space learned by the current attention head.</p>
+<figure>
+<img src="assets/01-qkv-matching.png"
+alt="How queries, keys, and values divide matching from retrieval" />
+<figcaption aria-hidden="true">How queries, keys, and values divide
+matching from retrieval</figcaption>
+</figure>
+<p>Within one attention head, the sequence is:</p>
+<pre class="text"><code>Q × Kᵀ        → matching scores
+softmax       → attention weights
+weights × V   → a context-aware output for each token</code></pre>
+<h3 id="the-causal-mask-prevents-the-model-from-looking-ahead">3.3 The
+Causal Mask Prevents the Model From Looking Ahead</h3>
+<p>During training, all tokens enter the layer together. Without a mask,
+the position containing <code>I</code> could directly attend to
+<code>like</code>, even though <code>like</code> is the answer it is
+supposed to predict.</p>
+<p>The causal mask is defined as</p>
+<p><span class="math display">\[
+M_{ij}=
+\begin{cases}
+0,&amp;j\le i\\
+-\infty,&amp;j&gt;i
+\end{cases}
+\]</span></p>
+<p>For our running example, the allowed attention pattern looks like
+this:</p>
+<pre class="text"><code>                 K_I   K_like   K_eating   K_apples
+Q_I               ✓       ×          ×           ×
+Q_like            ✓       ✓          ×           ×
+Q_eating          ✓       ✓          ✓           ×
+Q_apples          ✓       ✓          ✓           ✓</code></pre>
+<p>Entries assigned <span class="math inline">\(-\infty\)</span> become
+zero after softmax. Every row can therefore be computed in parallel
+without leaking information from future tokens.</p>
+<h3 id="why-scaled-dot-product-attention-divides-by-sqrtd_k">3.4 Why
+Scaled Dot-Product Attention Divides by <span
+class="math inline">\(\sqrt{d_k}\)</span></h3>
+<p>For a single attention head,</p>
+<p><span class="math display">\[
+\operatorname{Attention}(Q,K,V)=
+\operatorname{softmax}\left(
+\frac{QK^T}{\sqrt{d_k}}+M
+\right)V
+\]</span></p>
+<p>We have already seen the mask <span class="math inline">\(M\)</span>.
+The remaining detail is the scaling factor <span
+class="math inline">\(\sqrt{d_k}\)</span>.</p>
+<p>The dot product between one query <span
+class="math inline">\(q\)</span> and one key <span
+class="math inline">\(k\)</span> sums <span
+class="math inline">\(d_k\)</span> component-wise products:</p>
+<p><span class="math display">\[
+s=qk^T=\sum_{r=1}^{d_k}q_rk_r
+\]</span></p>
+<p>Under a common simplifying assumption, the components <span
+class="math inline">\(q_r\)</span> and <span
+class="math inline">\(k_r\)</span> are approximately independent, with
+mean 0 and variance 1. Each product <span
+class="math inline">\(q_rk_r\)</span> then has variance of roughly 1.
+After summing <span class="math inline">\(d_k\)</span> terms,</p>
+<p><span class="math display">\[
+\operatorname{Var}(s)\approx d_k,
+\qquad
+\operatorname{Std}(s)\approx\sqrt{d_k}
+\]</span></p>
+<p>As the head dimension grows, the raw scores naturally spread over a
+wider numerical range. Dividing by <span
+class="math inline">\(\sqrt{d_k}\)</span>,</p>
+<p><span class="math display">\[
+\widetilde{s}=\frac{s}{\sqrt{d_k}}
+\]</span></p>
+<p>brings their variance back to a stable scale:</p>
+<p><span class="math display">\[
+\operatorname{Var}(\widetilde{s})
+=\frac{\operatorname{Var}(s)}{d_k}
+\approx1
+\]</span></p>
+<figure>
+<img src="assets/02-scaled-dot-product-attention.png"
+alt="Why scaled dot-product attention divides by the square root of the key dimension" />
+<figcaption aria-hidden="true">Why scaled dot-product attention divides
+by the square root of the key dimension</figcaption>
+</figure>
+<p>This matters because softmax is highly sensitive to differences
+between its inputs. If <span class="math inline">\(d_k=64\)</span>, then
+<span class="math inline">\(\sqrt{d_k}=8\)</span>. The unscaled scores
+<span class="math inline">\([8,0,-8]\)</span> produce approximately</p>
+<p><span class="math display">\[
+[0.9997,0.0003,0]
+\]</span></p>
+<p>after softmax. Scaling them to <span
+class="math inline">\([1,0,-1]\)</span> produces the much less extreme
+distribution</p>
+<p><span class="math display">\[
+[0.665,0.245,0.090]
+\]</span></p>
+<p>The local derivative of softmax contains the term <span
+class="math inline">\(p(1-p)\)</span>. When <span
+class="math inline">\(p\)</span> approaches 0 or 1, that term approaches
+0 as well, weakening the gradient that flows backward. Dividing by <span
+class="math inline">\(\sqrt{d_k}\)</span> does not change the ordering
+of the dot-product scores. It controls their scale before softmax,
+preventing the distribution from becoming extreme merely because the
+representation dimension is large. The result is more stable training
+and healthier gradients.</p>
+<h3
+id="multi-head-attention-learns-relationships-in-several-projection-spaces">3.5
+Multi-Head Attention Learns Relationships in Several Projection
+Spaces</h3>
+<p>One attention head looks for relationships in one learned projection
+space. Multiple heads allow the same layer to model different
+patterns—such as action and agent, modifier and object, local syntax,
+coreference, or long-range dependencies.</p>
+<figure>
+<img src="assets/03-multi-head-attention.png"
+alt="Multiple attention heads process one layer in parallel" />
+<figcaption aria-hidden="true">Multiple attention heads process one
+layer in parallel</figcaption>
+</figure>
+<p>The head outputs are concatenated and passed through an output
+projection:</p>
+<p><span class="math display">\[
+C^{(l)}=\operatorname{Concat}(head_1,\ldots,head_h)W_O^{(l)}
+\]</span></p>
+<p>The heads operate in parallel within one layer. Transformer blocks
+themselves are stacked sequentially: the output of one block becomes the
+input to the next.</p>
+<h3 id="residual-connections-and-the-mlp-complete-the-block">3.6
+Residual Connections and the MLP Complete the Block</h3>
+<p>Attention lets each token retrieve information from other visible
+positions. A typical Pre-Norm block then uses residual connections and a
+feed-forward network:</p>
+<p><span class="math display">\[
+H_{attn}^{(l)}=H^{(l-1)}+C^{(l)}
+\]</span></p>
+<p><span class="math display">\[
+H^{(l)}=H_{attn}^{(l)}+
+\operatorname{MLP}(\operatorname{Norm}(H_{attn}^{(l)}))
+\]</span></p>
+<figure>
+<img src="assets/04-residual-connections-and-mlp.png"
+alt="Residual connections and the MLP inside a Transformer block" />
+<figcaption aria-hidden="true">Residual connections and the MLP inside a
+Transformer block</figcaption>
+</figure>
+<p>The two components do different work:</p>
+<ul>
+<li><strong>Residual connections</strong> preserve the incoming
+representation and make it easier for gradients to travel through a deep
+network.</li>
+<li><strong>The MLP</strong> transforms each token independently with a
+nonlinear feed-forward network, usually expanding the representation to
+a larger intermediate dimension before projecting it back down.</li>
+</ul>
+<p>Architectures differ in normalization placement and other block
+details, but the main data flow remains recognizable:</p>
+<pre class="text"><code>Input H⁽ˡ⁻¹⁾
+  → Norm → Q/K/V → Masked Multi-Head Attention
+  → Output projection + residual connection
+  → Norm → MLP + residual connection
+  → Output H⁽ˡ⁾</code></pre>
+<h2 id="stacking-blocks-to-produce-logits">4. Stacking Blocks to Produce
+Logits</h2>
+<p>The first block’s output becomes the second block’s input:</p>
+<p><span class="math display">\[
+H^{(1)}=\operatorname{Block}^{(1)}(H^{(0)})
+\]</span></p>
+<p><span class="math display">\[
+H^{(2)}=\operatorname{Block}^{(2)}(H^{(1)})
+\]</span></p>
+<p>More generally,</p>
+<p><span class="math display">\[
+H^{(l)}=\operatorname{Block}^{(l)}(H^{(l-1)})
+\]</span></p>
+<p>There are two useful ways to view the computation:</p>
+<pre class="text"><code>Across layers: H⁽⁰⁾ → Block 1 → H⁽¹⁾ → Block 2 → … → H⁽ᴸ⁾
+Inside a layer: H⁽ˡ⁻¹⁾ → Q/K/V → Attention → MLP → H⁽ˡ⁾</code></pre>
+<p>After the final Transformer block, the model applies a final
+normalization and an <strong>LM Head</strong>—the language-model output
+projection—to map each hidden vector into vocabulary space:</p>
+<p><span class="math display">\[
+Logits=\operatorname{LMHead}(\operatorname{Norm}(H^{(L)}))
+\]</span></p>
+<p>For a sequence length of <span class="math inline">\(n\)</span> and a
+vocabulary of size <span class="math inline">\(|Vocab|\)</span>, the
+training-time logits usually have shape</p>
+<p><span class="math display">\[
+[n,|Vocab|]
+\]</span></p>
+<p>Every row contains one raw score for every candidate next token.</p>
+<figure>
+<img src="assets/05-final-norm-and-lm-head.png"
+alt="From the final hidden state to vocabulary logits" />
+<figcaption aria-hidden="true">From the final hidden state to vocabulary
+logits</figcaption>
+</figure>
+<p>Here an important training–inference distinction appears:</p>
+<ul>
+<li><strong>During training</strong>, the model uses the logits at every
+valid position to compute next-token loss.</li>
+<li><strong>During autoregressive decoding</strong>, the application
+normally uses only the final position’s logits to choose the next
+token.</li>
+</ul>
+<p>Logits are raw scores. They can be positive or negative, and they are
+not probabilities until a softmax is applied.</p>
+<h2 id="from-logits-to-next-token-loss">5. From Logits to Next-Token
+Loss</h2>
+<p>Applying softmax to the logits produces a probability distribution
+over the vocabulary. Cross-entropy loss looks at the probability
+assigned to the correct next token: the higher that probability, the
+lower the loss.</p>
+<figure>
+<img src="assets/06-next-token-loss.png"
+alt="How next-token loss is computed at every valid position" />
+<figcaption aria-hidden="true">How next-token loss is computed at every
+valid position</figcaption>
+</figure>
+<p>If the correct next token at position <span
+class="math inline">\(i\)</span> is <span
+class="math inline">\(y_i\)</span>, and the model assigns it probability
+<span class="math inline">\(p(y_i)\)</span>, the cross-entropy loss at
+that position is</p>
+<p><span class="math display">\[
+\ell_i=-\log p(y_i)
+\]</span></p>
+<p>The full definition of cross-entropy is</p>
+<p><span class="math display">\[
+H(P,Q)=-\sum_jP_j\log Q_j
+\]</span></p>
+<p>In standard next-token training, the target distribution <span
+class="math inline">\(P\)</span> is one-hot: it contains 1 at the
+correct token and 0 everywhere else. Every term except the correct token
+therefore disappears, leaving <span class="math inline">\(-\log
+p(y_i)\)</span>.</p>
+<p>The negative sign converts “higher correct-token probability is
+better” into “lower loss is better.” The logarithm strongly penalizes
+confident mistakes and turns the product of conditional sequence
+probabilities into a sum of position-wise losses.</p>
+<p>The losses from all valid positions in the sequence and batch are
+then summed or averaged according to the training configuration. A
+common mean reduction is</p>
+<p><span class="math display">\[
+L=\frac{1}{N_{valid}}\sum_{i=1}^{N_{valid}}\ell_i
+\]</span></p>
+<p>Padding positions—or any positions excluded by a loss mask—do not
+contribute to <span class="math inline">\(N_{valid}\)</span>.</p>
+<p>In practice, training code usually passes the logits and target token
+IDs directly to a cross-entropy function. The implementation performs a
+numerically stable log-softmax internally; there is no need to construct
+one-hot vectors manually or sample a token before computing the
+loss.</p>
+<p>The <strong>causal mask</strong> and the <strong>loss mask</strong>
+solve different problems:</p>
+<ul>
+<li>The causal mask controls which positions attention is allowed to
+read.</li>
+<li>The loss mask controls which positions contribute to the training
+objective.</li>
+</ul>
+<h2 id="backpropagation-first-parameter-updates-second">6.
+Backpropagation First, Parameter Updates Second</h2>
+<p>A standard training step follows this sequence:</p>
+<pre class="text"><code>Complete forward pass: H⁽⁰⁾ → … → H⁽ᴸ⁾ → logits
+  → compute and aggregate cross-entropy across valid positions
+  → backpropagate gradients from the final layer to the first
+  → call optimizer.step() to update all trainable parameters</code></pre>
+<figure>
+<img src="assets/07-backpropagation-and-parameter-update.png"
+alt="A training step computes gradients before updating parameters" />
+<figcaption aria-hidden="true">A training step computes gradients before
+updating parameters</figcaption>
+</figure>
+<p>Let <span class="math inline">\(\theta_t\)</span> denote the complete
+set of trainable parameters used during training step <span
+class="math inline">\(t\)</span>. It includes the embedding matrix,
+every layer’s Q/K/V and output projections, MLP weights, normalization
+parameters, and the LM Head.</p>
+<p>The subscript <span class="math inline">\(t\)</span> refers to the
+training step—not a Transformer layer or token position. A matrix such
+as <span class="math inline">\(W_Q^{(l)}\)</span> is one specific
+parameter inside <span class="math inline">\(\theta_t\)</span>.</p>
+<p>Hidden states, Q/K/V activations, logits, and the KV cache are
+runtime results computed from an input. They are not part of <span
+class="math inline">\(\theta_t\)</span>.</p>
+<p>The entire forward and backward pass uses the same parameter version
+<span class="math inline">\(\theta_t\)</span>. The weights stay fixed
+while backpropagation computes gradients. Only the optimizer creates the
+next parameter version:</p>
+<p><span class="math display">\[
+\theta_t
+\xrightarrow{\text{forward/backward}}
+\nabla_{\theta_t}L
+\xrightarrow{\text{optimizer}}
+\theta_{t+1}
+\]</span></p>
+<p>The first layer’s <span class="math inline">\(W_Q^{(1)}\)</span> is
+not updated as soon as that layer finishes its forward computation. At
+that point, the model does not yet know the final prediction error. Only
+after the total loss has been computed can the chain rule produce
+gradients such as</p>
+<p><span class="math display">\[
+\frac{\partial L}{\partial W_Q^{(l)}},\qquad
+\frac{\partial L}{\partial W_K^{(l)}},\qquad
+\frac{\partial L}{\partial W_V^{(l)}}
+\]</span></p>
+<h3 id="how-the-chain-rule-carries-error-backward">How the Chain Rule
+Carries Error Backward</h3>
+<p>The chain rule describes how a variable affects a final result
+through a sequence of intermediate operations. If</p>
+<p><span class="math display">\[
+x\rightarrow y\rightarrow L
+\]</span></p>
+<p>then</p>
+<p><span class="math display">\[
+\frac{\partial L}{\partial x}
+=
+\frac{\partial L}{\partial y}
+\frac{\partial y}{\partial x}
+\]</span></p>
+<p>Inside a Transformer, the dependency path might be</p>
+<p><span class="math display">\[
+W_Q^{(l)}\rightarrow Q^{(l)}\rightarrow Attention\rightarrow H^{(l)}
+\rightarrow\cdots\rightarrow logits\rightarrow L
+\]</span></p>
+<p>Backpropagation starts at <span class="math inline">\(L\)</span> and
+follows that graph in reverse, multiplying local derivatives along each
+path. If one variable affects the loss through several paths, the
+returned gradient contributions are added together.</p>
+<p>The symbol <span class="math inline">\(\partial\)</span> denotes a
+<strong>partial derivative</strong>. The total loss depends on a huge
+number of parameters, so</p>
+<p><span class="math display">\[
+\frac{\partial L}{\partial W_Q^{(l)}}
+\]</span></p>
+<p>asks how <span class="math inline">\(L\)</span> would change under a
+small change to the layer-<span class="math inline">\(l\)</span> query
+matrix while the other parameters are treated as fixed.</p>
+<p>Because <span class="math inline">\(W_Q^{(l)}\)</span> is a matrix,
+its gradient has the same shape. Each gradient element measures the
+sensitivity of the loss to the corresponding weight. The sign indicates
+direction, and the magnitude indicates how sensitive the current loss is
+to that parameter.</p>
+<p>For the simplest form of gradient descent,</p>
+<p><span class="math display">\[
+W_Q^{(l)}\leftarrow W_Q^{(l)}-
+\eta\frac{\partial L}{\partial W_Q^{(l)}}
+\]</span></p>
+<p>where <span class="math inline">\(\eta\)</span> is the learning rate.
+The gradient points in the direction of the steepest local increase in
+loss, so subtracting it moves the parameter in the opposite
+direction.</p>
+<p>Backpropagation only computes and stores gradients. After all
+parameter gradients have been derived from the same forward pass and the
+same total loss, <code>optimizer.step()</code> performs the actual
+weight update.</p>
+<p>The optimizer can update the embedding matrix, Q/K/V projections,
+attention output projections, MLPs, normalization parameters, and LM
+Head. With gradient accumulation, several micro-batches contribute
+gradients before one optimizer step is performed.</p>
+<h2 id="the-whole-training-path-in-one-view">7. The Whole Training Path
+in One View</h2>
+<pre class="text"><code>Raw text
+  → Tokenizer: produce token IDs
+  → Shift targets by one position: define the next-token objective
+  → Embeddings and positional information: construct H⁽⁰⁾
+  → Block 1: create Q/K/V, run attention and the MLP, produce H⁽¹⁾
+  → Blocks 2…L: repeatedly transform the hidden states into H⁽²⁾…H⁽ᴸ⁾
+  → Final Norm + LM Head: produce vocabulary logits at every position
+  → Compare logits with the correct next tokens to compute cross-entropy loss
+  → Backpropagate through the complete computation graph
+  → Optimizer step: update the model weights</code></pre>
+<p>Training turns raw text into a learning signal that reaches every
+trainable parameter. Once training is complete, those weights are fixed
+for inference. The next part of the story is how the model uses them
+during prefill and token-by-token decoding—and how the KV cache prevents
+it from recomputing the same keys and values at every step.</p>
+</article>
+</main>
+</body>
+</html>
