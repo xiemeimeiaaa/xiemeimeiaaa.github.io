@@ -26,11 +26,15 @@ test("English and Chinese translations expose the same complete interface", () =
     "siteName",
     "articlesNav",
     "githubLabel",
+    "linkedinLabel",
     "primaryNavAria",
     "switchLabel",
     "kicker",
     "heading",
     "description",
+    "profileHeading",
+    "profileDescription",
+    "profileImageAlt",
     "latest",
     "count",
     "topic",
@@ -46,10 +50,18 @@ test("English and Chinese translations expose the same complete interface", () =
     "article2Aria",
     "footer",
     "githubAria",
+    "linkedinAria",
   ].sort();
 
   assert.deepEqual(Object.keys(translations.en).sort(), expectedKeys);
   assert.deepEqual(Object.keys(translations.zh).sort(), expectedKeys);
+});
+
+test("English profile copy preserves the approved introduction", () => {
+  assert.equal(
+    translations.en.profileDescription,
+    "Backend software engineer with 3 years of experience building reliable production systems in insurtech. I work across AI customer service, multi-agent orchestration and high-concurrency services—and I’m exploring more opportunities in Germany.",
+  );
 });
 
 test("both locales describe the inference article", () => {
@@ -99,4 +111,24 @@ test("applying a language updates visible copy, accessible labels, and document 
   assert.equal(textNode.lang, "zh");
   assert.equal(ariaNode.ariaLabel, "阅读《初学 Transformer LLM》");
   assert.equal(root.documentElement.lang, "zh");
+});
+
+test("applying a language localizes the portrait alternative text", () => {
+  const portrait = {
+    dataset: { i18nAlt: "profileImageAlt" },
+    alt: "",
+    setAttribute(name, value) {
+      if (name === "alt") this.alt = value;
+    },
+  };
+  const root = {
+    documentElement: { lang: "en" },
+    querySelectorAll(selector) {
+      return selector === "[data-i18n-alt]" ? [portrait] : [];
+    },
+  };
+
+  applyLanguage(root, "zh");
+
+  assert.equal(portrait.alt, "Mei 的个人照片");
 });

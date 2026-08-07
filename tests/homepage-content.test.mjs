@@ -29,3 +29,18 @@ test("post list exposes localized copy and accessible labels", () => {
     assert.match(html, new RegExp(`data-i18n(?:-aria)?="${key}"`));
   }
 });
+
+test("homepage exposes Mei's profile and social destinations", () => {
+  assert.match(html, /class="profile-intro"/);
+  assert.match(html, /src="\/assets\/mei-profile\.png"/);
+  assert.match(
+    html,
+    /Backend software engineer with 3 years of experience building reliable production systems in insurtech\./,
+  );
+  assert.match(html, /href="https:\/\/github\.com\/xiemeimeiaaa"/);
+  assert.match(
+    html,
+    /href="https:\/\/www\.linkedin\.com\/in\/mei-xie-7ab332301\/"/,
+  );
+  assert.match(html, /data-i18n-alt="profileImageAlt"/);
+});

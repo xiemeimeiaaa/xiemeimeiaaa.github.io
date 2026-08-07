@@ -3,11 +3,16 @@ export const translations = {
     siteName: "XIE MEI / 谢媚",
     articlesNav: "Articles",
     githubLabel: "GitHub",
+    linkedinLabel: "LinkedIn",
     switchLabel: "中文 · EN",
     kicker: "WRITING & NOTES",
     heading: "Knowledge Library",
     description:
       "Clear explanations of language models, AI agents, and software engineering—built from first principles.",
+    profileHeading: "Hi, I'm Mei. 👋",
+    profileDescription:
+      "Backend software engineer with 3 years of experience building reliable production systems in insurtech. I work across AI customer service, multi-agent orchestration and high-concurrency services—and I’m exploring more opportunities in Germany.",
+    profileImageAlt: "Portrait of Mei",
     latest: "Articles",
     count: "2 articles",
     topic: "LLMs",
@@ -25,16 +30,22 @@ export const translations = {
     article2Aria: "Read “How Transformer LLMs Generate Text”",
     footer: "More writing will appear here over time.",
     githubAria: "Visit Xie Mei's GitHub profile",
+    linkedinAria: "Visit Mei's LinkedIn profile",
     primaryNavAria: "Primary navigation",
   },
   zh: {
     siteName: "XIE MEI / 谢媚",
     articlesNav: "文章",
     githubLabel: "GitHub",
+    linkedinLabel: "LinkedIn",
     switchLabel: "中文 · EN",
     kicker: "写作与笔记",
     heading: "知识库",
     description: "从第一性原理出发，清晰解释大语言模型、AI Agent 与软件工程。",
+    profileHeading: "你好，我是 Mei。👋",
+    profileDescription:
+      "拥有 3 年保险科技生产系统经验的后端软件工程师，专注于 AI 客服、多智能体编排与高并发服务，目前正在探索更多德国工作机会。",
+    profileImageAlt: "Mei 的个人照片",
     latest: "文章",
     count: "2 篇文章",
     topic: "LLMs",
@@ -52,6 +63,7 @@ export const translations = {
     article2Aria: "阅读《Transformer LLM 如何生成文本》",
     footer: "更多文章会陆续整理在这里。",
     githubAria: "访问谢媚的 GitHub 主页",
+    linkedinAria: "访问 Mei 的 LinkedIn 主页",
     primaryNavAria: "主导航",
   },
 };
@@ -79,6 +91,11 @@ export function applyLanguage(root, language) {
   for (const element of root.querySelectorAll("[data-i18n-aria]")) {
     const value = copy[element.dataset.i18nAria];
     if (value !== undefined) element.setAttribute("aria-label", value);
+  }
+
+  for (const element of root.querySelectorAll("[data-i18n-alt]")) {
+    const value = copy[element.dataset.i18nAlt];
+    if (value !== undefined) element.setAttribute("alt", value);
   }
 
   root.documentElement.lang = selectedLanguage;
