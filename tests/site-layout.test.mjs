@@ -54,3 +54,27 @@ test("profile uses a circular focal crop and responsive stacking", () => {
     /@media \(max-width: 640px\)[\s\S]*?\.profile-intro\s*{[\s\S]*?grid-template-columns:\s*1fr/,
   );
 });
+
+test("social icons match the reference interaction with reduced-motion support", () => {
+  assert.match(
+    sharedStyles,
+    /\.profile-link\s*{[\s\S]*?transition:\s*[^;]*transform/,
+  );
+  assert.match(
+    sharedStyles,
+    /\.profile-link:hover\s*{[\s\S]*?transform:\s*rotate\(6deg\)/,
+  );
+  assert.match(sharedStyles, /\.profile-link svg\s*{[\s\S]*?width:\s*24px/);
+  assert.match(
+    sharedStyles,
+    /\.profile-link svg\s*{[\s\S]*?transform:\s*scale\(1\.25\)/,
+  );
+  assert.match(
+    sharedStyles,
+    /@media \(max-width: 640px\)[\s\S]*?\.profile-link svg\s*{[\s\S]*?transform:\s*scale\(1\.1\)/,
+  );
+  assert.match(
+    sharedStyles,
+    /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.profile-link:hover\s*{[\s\S]*?transform:\s*none/,
+  );
+});

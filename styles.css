@@ -203,17 +203,21 @@ p {
   justify-content: center;
   color: var(--muted);
   text-decoration: none;
+  transition: color 150ms ease, transform 150ms ease;
 }
 
 .profile-link:hover {
   color: var(--accent);
+  transform: rotate(6deg);
 }
 
 .profile-link svg {
-  width: 27px;
-  height: 27px;
+  width: 24px;
+  height: 24px;
   display: block;
-  fill: currentColor;
+  fill: none;
+  stroke: currentColor;
+  transform: scale(1.25);
 }
 
 .visually-hidden {
@@ -534,6 +538,10 @@ mjx-container {
     justify-content: center;
   }
 
+  .profile-link svg {
+    transform: scale(1.1);
+  }
+
   .article-header {
     margin-bottom: 34px;
   }
@@ -572,5 +580,13 @@ mjx-container {
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+
+  .profile-link {
+    transition: none;
+  }
+
+  .profile-link:hover {
+    transform: none;
   }
 }
