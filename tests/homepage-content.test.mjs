@@ -44,3 +44,28 @@ test("homepage exposes Mei's profile and social destinations", () => {
   );
   assert.match(html, /data-i18n-alt="profileImageAlt"/);
 });
+
+test("profile links expose three ordered outline brand icons", () => {
+  const profileStart = html.indexOf('class="profile-links"');
+  const githubIndex = html.indexOf(
+    'href="https://github.com/xiemeimeiaaa"',
+    profileStart,
+  );
+  const linkedinIndex = html.indexOf(
+    'href="https://www.linkedin.com/in/mei-xie-7ab332301/"',
+    githubIndex,
+  );
+  const zhihuIndex = html.indexOf(
+    'href="https://www.zhihu.com/people/wasabimiao-miao-miao"',
+    linkedinIndex,
+  );
+
+  assert.ok(githubIndex > profileStart);
+  assert.ok(linkedinIndex > githubIndex);
+  assert.ok(zhihuIndex > linkedinIndex);
+  assert.equal((html.match(/class="profile-link"/g) ?? []).length, 3);
+  assert.equal((html.match(/stroke="currentColor"/g) ?? []).length, 3);
+  assert.equal((html.match(/stroke-width="2"/g) ?? []).length, 3);
+  assert.equal((html.match(/stroke-linecap="round"/g) ?? []).length, 3);
+  assert.equal((html.match(/stroke-linejoin="round"/g) ?? []).length, 3);
+});

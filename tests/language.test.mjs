@@ -27,6 +27,7 @@ test("English and Chinese translations expose the same complete interface", () =
     "articlesNav",
     "githubLabel",
     "linkedinLabel",
+    "zhihuLabel",
     "primaryNavAria",
     "switchLabel",
     "kicker",
@@ -51,6 +52,7 @@ test("English and Chinese translations expose the same complete interface", () =
     "footer",
     "githubAria",
     "linkedinAria",
+    "zhihuAria",
   ].sort();
 
   assert.deepEqual(Object.keys(translations.en).sort(), expectedKeys);
@@ -62,6 +64,13 @@ test("English profile copy preserves the approved introduction", () => {
     translations.en.profileDescription,
     "Backend software engineer with 3 years of experience building reliable production systems in insurtech. I work across AI customer service, multi-agent orchestration and high-concurrency services—and I’m exploring more opportunities in Germany.",
   );
+});
+
+test("both locales expose exact Zhihu labels", () => {
+  assert.equal(translations.en.zhihuLabel, "Zhihu");
+  assert.equal(translations.en.zhihuAria, "Visit Mei's Zhihu profile");
+  assert.equal(translations.zh.zhihuLabel, "知乎");
+  assert.equal(translations.zh.zhihuAria, "访问 Mei 的知乎主页");
 });
 
 test("both locales describe the inference article", () => {

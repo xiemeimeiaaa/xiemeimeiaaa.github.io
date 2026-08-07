@@ -4,6 +4,7 @@ export const translations = {
     articlesNav: "Articles",
     githubLabel: "GitHub",
     linkedinLabel: "LinkedIn",
+    zhihuLabel: "Zhihu",
     switchLabel: "中文 · EN",
     kicker: "WRITING & NOTES",
     heading: "Knowledge Library",
@@ -31,6 +32,7 @@ export const translations = {
     footer: "More writing will appear here over time.",
     githubAria: "Visit Xie Mei's GitHub profile",
     linkedinAria: "Visit Mei's LinkedIn profile",
+    zhihuAria: "Visit Mei's Zhihu profile",
     primaryNavAria: "Primary navigation",
   },
   zh: {
@@ -38,6 +40,7 @@ export const translations = {
     articlesNav: "文章",
     githubLabel: "GitHub",
     linkedinLabel: "LinkedIn",
+    zhihuLabel: "知乎",
     switchLabel: "中文 · EN",
     kicker: "写作与笔记",
     heading: "知识库",
@@ -64,6 +67,7 @@ export const translations = {
     footer: "更多文章会陆续整理在这里。",
     githubAria: "访问谢媚的 GitHub 主页",
     linkedinAria: "访问 Mei 的 LinkedIn 主页",
+    zhihuAria: "访问 Mei 的知乎主页",
     primaryNavAria: "主导航",
   },
 };
