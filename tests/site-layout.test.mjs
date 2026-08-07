@@ -43,3 +43,14 @@ test("both articles use the same shared article template", () => {
 test("the shared header stacks at narrow phone widths", () => {
   assert.match(sharedStyles, /@media \(max-width: 360px\)[\s\S]*?\.header-inner\s*{[\s\S]*?flex-direction:\s*column/);
 });
+
+test("profile uses a circular focal crop and responsive stacking", () => {
+  assert.match(sharedStyles, /\.profile-intro\s*{[\s\S]*?display:\s*grid/);
+  assert.match(sharedStyles, /\.profile-portrait\s*{[\s\S]*?border-radius:\s*50%/);
+  assert.match(sharedStyles, /\.profile-portrait\s*{[\s\S]*?object-fit:\s*cover/);
+  assert.match(sharedStyles, /\.profile-portrait\s*{[\s\S]*?object-position:/);
+  assert.match(
+    sharedStyles,
+    /@media \(max-width: 640px\)[\s\S]*?\.profile-intro\s*{[\s\S]*?grid-template-columns:\s*1fr/,
+  );
+});
