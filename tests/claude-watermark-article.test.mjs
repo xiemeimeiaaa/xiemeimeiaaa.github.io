@@ -51,6 +51,16 @@ test("Claude watermark article preserves the source announcement framing", async
   );
 });
 
+test("Claude watermark article uses the localized shared navigation and footer", async () => {
+  const html = await readFile(articleUrl, "utf8");
+  assert.match(
+    html,
+    /<a class="back-link" href="\/#articles" data-i18n="articlesNav">Articles<\/a>/,
+  );
+  assert.match(html, /<p data-i18n="footer">More writing will appear here over time\.<\/p>/);
+  assert.match(html, /<a href="\/#articles" data-i18n="articlesNav">Articles<\/a>/);
+});
+
 test("Claude watermark article keeps source examples and primary references", async () => {
   const html = await readFile(articleUrl, "utf8");
   for (const requiredText of [

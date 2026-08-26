@@ -2,7 +2,7 @@ blockquote {
   margin: 28px 0;
   padding: 18px 22px;
   border-left: 3px solid var(--accent);
-  background: var(--surface-soft);
+  background: var(--surface);
   color: #294653;
   font-family: Georgia, "Times New Roman", serif;
   font-size: 1.08rem;
