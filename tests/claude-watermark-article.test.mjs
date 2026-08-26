@@ -38,6 +38,19 @@ test("Claude watermark article preserves the approved six-part structure", async
   assert.deepEqual(positions, [...positions].sort((a, b) => a - b));
 });
 
+test("Claude watermark article preserves the source announcement framing", async () => {
+  const html = await readFile(articleUrl, "utf8");
+  const normalized = html.replace(/\s+/g, " ");
+  assert.match(
+    normalized,
+    /In August 2026, Anthropic announced that future Claude models would add a watermark to the text they generate\./,
+  );
+  assert.match(
+    normalized,
+    /a statistical pattern distributed across many token choices/i,
+  );
+});
+
 test("Claude watermark article keeps source examples and primary references", async () => {
   const html = await readFile(articleUrl, "utf8");
   for (const requiredText of [

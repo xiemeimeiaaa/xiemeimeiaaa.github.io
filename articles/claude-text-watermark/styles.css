@@ -12,6 +12,11 @@ blockquote p:last-child {
   margin-bottom: 0;
 }
 
+.article-opening {
+  margin: 32px 0 0;
+  color: #374b59;
+}
+
 .equation-note {
   margin-block: 28px;
   padding: 16px 20px;
