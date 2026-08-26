@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 
-test("homepage links to both Transformer articles", () => {
+test("homepage links to all published articles", () => {
   assert.match(
     html,
     /href="articles\/transformer-llms-for-beginners\/"/,
@@ -14,7 +14,8 @@ test("homepage links to both Transformer articles", () => {
     /href="https:\/\/xiemeimeiaaa\.github\.io\/transformer-llms-for-beginners\/"/,
   );
   assert.match(html, /articles\/transformer-inference-kv-cache\//);
-  assert.equal((html.match(/class="post-entry"/g) ?? []).length, 2);
+  assert.match(html, /articles\/claude-text-watermark\//);
+  assert.equal((html.match(/class="post-entry"/g) ?? []).length, 3);
   assert.doesNotMatch(html, /class="article-card"/);
 });
 
@@ -68,4 +69,16 @@ test("profile links expose three ordered outline brand icons", () => {
   assert.equal((html.match(/stroke-width="2"/g) ?? []).length, 3);
   assert.equal((html.match(/stroke-linecap="round"/g) ?? []).length, 3);
   assert.equal((html.match(/stroke-linejoin="round"/g) ?? []).length, 3);
+});
+
+test("Claude watermark article card exposes localized copy and an accessible label", () => {
+  for (const key of [
+    "article3Title",
+    "article3Summary",
+    "article3Aria",
+    "article3ReadingTime",
+    "article3Date",
+  ]) {
+    assert.match(html, new RegExp(`data-i18n(?:-aria)?="${key}"`));
+  }
 });

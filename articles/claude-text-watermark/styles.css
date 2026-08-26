@@ -1,0 +1,26 @@
+blockquote {
+  margin: 28px 0;
+  padding: 18px 22px;
+  border-left: 3px solid var(--accent);
+  background: var(--surface-soft);
+  color: #294653;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.08rem;
+}
+
+blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+.equation-note {
+  margin-block: 28px;
+  padding: 16px 20px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  text-align: center;
+}
+
+.compact-list li + li {
+  margin-top: 10px;
+}

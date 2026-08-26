@@ -9,6 +9,7 @@ const pages = await Promise.all(
     "../index.html",
     "../articles/transformer-inference-kv-cache/index.html",
     "../articles/transformer-llms-for-beginners/index.html",
+    "../articles/claude-text-watermark/index.html",
   ].map(async (path) => ({
     path,
     html: await readFile(new URL(path, import.meta.url), "utf8"),
@@ -30,7 +31,7 @@ test("every page uses the shared site chrome and assets", () => {
   }
 });
 
-test("both articles use the same shared article template", () => {
+test("all articles use the same shared article template", () => {
   for (const { path, html } of pages.slice(1)) {
     assert.match(html, /<main id="article-content" class="site-shell article-main">/, path);
     assert.match(html, /<article class="article-page" lang="en">/, path);

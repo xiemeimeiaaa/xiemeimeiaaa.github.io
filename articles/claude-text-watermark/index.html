@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="How Claude uses secret-key-controlled token sampling to watermark text, how detection works, and where the statistical signal breaks down."
+    >
+    <meta name="theme-color" content="#eef3f8">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="How Claude’s Text Watermark Works">
+    <meta
+      property="og:description"
+      content="A clear guide to SynthID-Text, watermark detection, rewriting attacks, code, files, and the limits of statistical provenance."
+    >
+    <meta
+      property="og:url"
+      content="https://xiemeimeiaaa.github.io/articles/claude-text-watermark/"
+    >
+    <link
+      rel="canonical" href="https://xiemeimeiaaa.github.io/articles/claude-text-watermark/"
+    >
+    <title>How Claude’s Text Watermark Works</title>
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="styles.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js"></script>
+    <script type="module" src="/script.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#article-content">Skip to article</a>
+
+    <header class="site-header">
+      <div class="site-shell header-inner">
+        <a class="site-name" href="/" data-i18n="siteName">XIE MEI / 谢媚</a>
+        <nav class="site-nav" data-i18n-aria="primaryNavAria" aria-label="Primary navigation">
+          <a href="/#articles" data-i18n="articlesNav">Articles</a>
+          <a
+            href="https://github.com/xiemeimeiaaa"
+            data-i18n="githubLabel"
+            data-i18n-aria="githubAria"
+            aria-label="Visit Xie Mei's GitHub profile"
+          >GitHub</a>
+          <button
+            class="language-switch"
+            type="button"
+            data-language-switch
+            data-i18n="switchLabel"
+            data-i18n-aria="switchLabel"
+            aria-label="中文 · EN"
+          >中文 · EN</button>
+        </nav>
+      </div>
+    </header>
+
+    <main id="article-content" class="site-shell article-main">
+      <article class="article-page" lang="en">
+          <header class="article-header">
+            <a class="back-link" href="/">← Back to Library</a>
+            <h1 class="article-title">How Claude’s Text Watermark Works</h1>
+            <p class="dek">
+              Claude does not hide an identifier inside its answers. Instead,
+              a secret key influences many ordinary token choices until they
+              add up to a detectable statistical pattern.
+            </p>
+            <div class="article-meta">
+              <time datetime="2026-08-26">August 2026</time>
+              <span>16 min read</span>
+            </div>
+            <p class="source-note">
+              This article is based primarily on
+              <a href="https://www.anthropic.com/news/claude-text-watermark">Anthropic’s official explanation</a>,
+              with technical context from the
+              <a href="https://www.nature.com/articles/s41586-024-08025-4">SynthID-Text paper</a>
+              and
+              <a href="https://magazine.sebastianraschka.com/p/claude-watermarking">Sebastian Raschka’s walkthrough</a>.
+            </p>
+          </header>
+
+          <section aria-labelledby="quick-overview">
+            <h2 id="quick-overview">1. Quick Overview</h2>
+
+            <h3>What is the watermark?</h3>
+            <p>
+              When a large language model generates the next token, it often
+              has to choose among several candidates that are almost equally
+              probable—and equally reasonable. Claude’s watermarking mechanism
+              uses a secret key to control the randomness behind those choices,
+              much like fixing a random seed so that the same random sequence
+              can be reproduced. Across a long response, many small choices
+              accumulate into a detectable statistical pattern.
+            </p>
+            <p>
+              The watermark is not a mysterious serial number or a hidden
+              character. Removing formatting, copying the text, and pasting it
+              somewhere else does not remove the underlying pattern.
+            </p>
+
+            <h3>Does watermarking affect quality?</h3>
+            <p>
+              Anthropic says its internal tests found no practical effect on
+              the content, creativity, or readability of Claude’s responses,
+              and users are not expected to distinguish watermarked responses
+              from unwatermarked ones. Claude uses a version of Google
+              DeepMind’s SynthID-Text. DeepMind compared watermarked and
+              unwatermarked responses in live Gemini traffic and found no
+              statistically significant difference in thumbs-up or thumbs-down
+              rates. Human raters likewise found no meaningful quality
+              difference in controlled comparisons.
+            </p>
+            <p>
+              Those results do not prove that watermarking can never affect
+              any output. They show that the system is designed to alter the
+              selection only when several candidate tokens are similarly good,
+              and that testing did not reveal a decline in content quality.
+            </p>
+
+            <h3>Does it make Claude slower or more expensive?</h3>
+            <p>
+              The watermark does not generate extra tokens, so it does not add
+              cost by making responses longer. Anthropic says its performance
+              overhead is negligible and that the price of using the model does
+              not change.
+            </p>
+
+            <h3>Can the watermark identify a user?</h3>
+            <p>
+              No. Claude’s text watermark indicates possible Claude
+              involvement; it contains no user, organization, account, or chat
+              information. Detecting it can at most show that Claude
+              <em>probably</em> helped generate or process the text. The
+              watermark itself carries no identity data.
+            </p>
+
+            <h3>Will Claude be the only model with a watermark?</h3>
+            <p>
+              No. Anthropic introduced watermarking because the European Union
+              requires transparency measures for AI-generated content. Other
+              major model providers signed the same Code of Practice and will
+              use their own marking systems. Providers may use different
+              algorithms and keys, so Claude’s detector cannot identify text
+              generated by every other company’s models.
+            </p>
+          </section>
+
+          <section aria-labelledby="how-watermarking-works">
+            <h2 id="how-watermarking-works">2. How the Watermark Is Embedded</h2>
+            <p>
+              To understand Claude’s watermark, we only need to locate the
+              point at which it enters the generation pipeline.
+            </p>
+            <p>
+              Given the tokens already present, a language model computes a
+              score for each possible next token and selects one of the
+              plausible candidates. We do not need to revisit tokenization,
+              logits, softmax, top-k, or top-p sampling here. The important
+              point is that at many positions the model is not choosing between
+              one correct word and a collection of wrong words. It is choosing
+              among several alternatives that would all work.
+            </p>
+            <p>Anthropic uses this example:</p>
+            <blockquote><p>The weather today was cold and…</p></blockquote>
+            <p>
+              The next word is unlikely to be <code>sugary</code>, but both
+              <code>overcast</code> and <code>grey</code> are plausible. Under
+              ordinary sampling, the difference barely matters to the meaning,
+              so randomness can decide which one appears.
+            </p>
+            <p>
+              Watermarked generation still selects only from words the model
+              already considers reasonable. The difference is that the choice
+              is no longer driven by arbitrary randomness: it is influenced by
+              a secret key together with a few words that came before. Someone
+              who knows the key can later test whether a sequence of token
+              choices is consistent with that rule.
+            </p>
+            <p>
+              This does not mean Claude always prefers <code>overcast</code>
+              or always prefers <code>grey</code>. The same word may behave
+              differently in a different context because changing the preceding
+              words changes the pseudorandom result derived from the key. Nor
+              does the watermark force a word the model would barely consider,
+              such as Anthropic’s deliberately obscure example
+              <code>nubilous</code>, into the answer.
+            </p>
+            <p>
+              The watermark therefore does not live inside a special word, and
+              there is no fixed “Claude watermark vocabulary.” What can be
+              detected is the statistical pattern created by many tokens in
+              their particular contexts.
+            </p>
+
+            <h3>SynthID-Text</h3>
+            <p>
+              Claude’s watermark is a version of
+              <a href="https://www.nature.com/articles/s41586-024-08025-4">SynthID-Text</a>,
+              published by Google DeepMind in 2024. This family of methods goes
+              back to an idea proposed by Scott Aaronson in 2022. They share a
+              central principle: do not retrain the model and do not append
+              information after generation. Instead, change the source of
+              randomness at the point where the model samples its next token.
+            </p>
+            <p>The core relationship can be simplified as follows:</p>
+            <div class="equation-note">
+              \[
+              \text{watermark score}
+              =f(\text{secret key},\text{recent context},\text{candidate token})
+              \]
+            </div>
+            <p>
+              The function combines the secret key, recent context, and the
+              candidate token to produce a score that looks random but can be
+              reproduced. The same key and inputs give the same result; change
+              the context or the candidate token and the result changes too.
+            </p>
+            <p>
+              In simplified form, the model obtains candidate tokens according
+              to its original probability distribution and compares them over
+              multiple rounds. The watermark uses several key-controlled
+              scoring functions, with a different function deciding which
+              candidates survive each round until a final token is selected.
+            </p>
+            <p>
+              Think of it as a knockout tournament. Every entrant must first
+              be a candidate the language model considers reasonable. The
+              scoring functions influence the tournament result, but they do
+              not turn an implausible token into a good answer. One result looks
+              unremarkable; after many such choices, watermarked text is more
+              likely than ordinary text to match the secret key’s pattern.
+            </p>
+            <p>
+              Anthropic also explains the idea with Monopoly and the digits of
+              pi. Normally, players roll dice to decide how far to move.
+              Imagine replacing the dice with digits read sequentially from a
+              randomly chosen location in pi. The moves would still look random
+              to the players and the game would feel the same. But anyone who
+              knew pi and the starting location could later check whether the
+              recorded moves matched that sequence.
+            </p>
+            <p>
+              Watermarked Claude text works in much the same way. Readers still
+              see natural prose, while someone with the key can test whether
+              the token choices across the passage could have come from that
+              particular key-controlled random process.
+            </p>
+          </section>
+
+          <section aria-labelledby="detecting-claude-text">
+            <h2 id="detecting-claude-text">3. How Can We Tell Whether Text Was Mostly Generated by Claude?</h2>
+            <p>
+              A simple but impractical detector would recover the original
+              prompt, run Claude again, reconstruct the candidate-token scores
+              at every position, and compare them with the text under review.
+              This would be expensive, and in most real cases the detector does
+              not know the original input or even the exact model version.
+            </p>
+            <p>
+              One important feature of SynthID-Text is that detection does not
+              require rerunning the underlying language model or knowing the
+              original prompt.
+            </p>
+            <p>
+              The detector tokenizes the text, examines the context before each
+              token, and combines that context with the secret key and the
+              watermark scoring functions. It computes how closely each token
+              at each position matches the watermark rule, then aggregates the
+              scores across the passage.
+            </p>
+            <p>
+              In unwatermarked text, high and low scores should behave roughly
+              like ordinary random outcomes. In text produced by a watermarked
+              Claude model, outcomes favored during generation appear more
+              often, so the aggregate score may depart significantly from the
+              unwatermarked baseline.
+            </p>
+            <p>
+              As a simple illustration, imagine a detector with three
+              watermark scoring functions. Each token receives a sequence of
+              zeros and ones. The detector sums the scores at many positions,
+              takes an average, and compares the result with a threshold. The
+              real SynthID-Text detector is more sophisticated, but the core
+              idea is the same: it evaluates a statistical tendency across the
+              passage, not a hidden string embedded in one location.
+            </p>
+            <p>
+              Detection is therefore not an absolute yes-or-no test. Longer
+              passages usually provide more samples and greater confidence
+              about Claude’s involvement. A very short passage may contain too
+              little information and produce only an uncertain result. If
+              Claude generated a long passage from scratch, the signal has many
+              opportunities to accumulate. If Claude changed only a few grammar
+              or punctuation details in a human draft, most tokens still came
+              from the original author and the signal may be too weak to detect.
+            </p>
+            <p>
+              The detector also cannot strictly distinguish “Claude wrote this
+              from scratch” from “Claude heavily rewrote a human draft.” If
+              Claude selected enough new tokens, both cases can produce a
+              detectable watermark. Anthropic frames the detector’s question
+              accordingly:
+            </p>
+            <blockquote><p>What is the likelihood this was partly written by Claude?</p></blockquote>
+            <p>
+              Conversely, failing to detect a Claude watermark does not prove
+              that a human wrote the text. It may have come from another AI
+              model, an older unwatermarked model, or a passage that was edited
+              enough to damage the watermark. Even another SynthID-Text model
+              will generally use a different key, so Claude’s detector cannot
+              verify its watermark.
+            </p>
+            <p>
+              Anthropic will not publish the secret key directly. If a third
+              party obtained it, that party could not only detect the watermark
+              but potentially forge it or target the positions that contribute
+              the most evidence. Anthropic instead says it will offer a
+              watermark detection API.
+            </p>
+            <p>
+              Watermark detection also differs from existing AI-text
+              classifiers. Ordinary detectors do not possess model providers’
+              keys; they infer AI involvement from sentence structure, word
+              preferences, predictability, and other stylistic clues. A
+              watermark detector checks a key-related pattern deliberately
+              introduced during generation. It is more targeted, but also
+              narrower in scope.
+            </p>
+          </section>
+
+          <section aria-labelledby="limitations">
+            <h2 id="limitations">4. Limitations</h2>
+            <p>
+              Most limitations of Claude’s text watermark follow from the same
+              fact: it needs many freely chosen tokens to accumulate statistical
+              evidence. The fewer choices the model has—or the more those
+              choices are later changed—the harder detection becomes.
+            </p>
+
+            <h3>Factual passages and short samples</h3>
+            <p>Anthropic uses this example:</p>
+            <blockquote><p>Isaac Newton’s most famous work was called Principia…</p></blockquote>
+            <p>
+              The next word, <code>Mathematica</code>, is part of the correct
+              title and cannot be swapped merely to strengthen a watermark.
+              Factual answers, exact numbers, equations, and proper nouns often
+              present the same problem: the correct choice is clear, leaving
+              little room for the watermark to act without sacrificing
+              accuracy.
+            </p>
+            <p>
+              Short text has a different problem: too few samples. A real
+              watermark tendency may be hidden by ordinary random variation.
+              It is like trying to decide whether a coin is biased: two or
+              three identical flips prove very little, whereas hundreds of
+              flips can provide meaningful evidence.
+            </p>
+
+            <h3>Proofreading and light editing</h3>
+            <p>
+              If a user asks Claude to correct only grammar and punctuation in
+              a human-written passage, Claude may choose very few new tokens.
+              The watermark can exist only in those changes and may be too weak
+              to detect.
+            </p>
+            <p>
+              The more Claude rewrites, the more new choices it makes and the
+              more room the watermark has to accumulate. Detection can therefore
+              indicate probable Claude involvement, but it cannot tell us from
+              the watermark alone whether Claude generated the whole passage or
+              deeply edited an existing draft.
+            </p>
+
+            <h3>The countermeasure: rewrite with another model</h3>
+            <p>
+              Text watermarking has an unavoidable weakness: prose can be
+              rephrased. Changing a few words, deleting a few sentences, or
+              making minor edits may leave much of the signal intact. Heavily
+              changing wording, syntax, and paragraph structure disrupts the
+              original tokens and their contextual relationships, reducing the
+              detector’s confidence.
+            </p>
+            <p>
+              If an attacker knew which positions contributed most to the
+              watermark score, editing those positions could efficiently weaken
+              the signal. Without the key, however, the attacker does not know
+              which tokens matter most and must edit broadly enough to destroy
+              the pattern by chance.
+            </p>
+            <p>
+              One likely workaround is to generate an article with a powerful
+              Claude model and then pass it to a smaller model that does not use
+              the same watermark. The second model need not solve the original
+              task; it only needs to change wording and sentence structure. That
+              may substantially weaken Claude’s watermark.
+            </p>
+            <p>
+              Watermarking cannot technically prevent this workflow, but it
+              adds another model call and another editing stage. Broad rewriting
+              performed solely to remove the watermark can also reduce quality:
+              precise, natural phrasing may be replaced by language that is more
+              awkward or less accurate.
+            </p>
+            <p>
+              Translation requires the same distinction. A translation
+              generated directly by Claude can carry a watermark because Claude
+              selects every token in the translation. If an already watermarked
+              passage is translated by another system, however, the original
+              token sequence is replaced and the original watermark may be
+              substantially weakened.
+            </p>
+            <p>
+              Anthropic is explicit about this trade-off: light editing may not
+              remove the watermark completely, while a complete rewrite that
+              replaces every word can. Once every word and sentence structure
+              has changed, whether the result should still be described as the
+              original AI-generated text becomes partly a question of
+              definition.
+            </p>
+          </section>
+
+          <section aria-labelledby="other-output-formats">
+            <h2 id="other-output-formats">5. Code, Images, and Other Files</h2>
+
+            <h3>Code</h3>
+            <p>
+              Text watermarking works best where several expressions are
+              equally acceptable. Code often requires exact output. Keywords,
+              function names, variable references, and syntax cannot be changed
+              arbitrarily without breaking the program.
+            </p>
+            <p>
+              Anthropic uses <code>2 + 2 =</code> as an example. If the model
+              is completing the calculation, the next token should clearly be
+              <code>4</code>. If it is discussing George Orwell’s
+              <cite>Nineteen Eighty-Four</cite>, a particular context might call
+              for <code>5</code>. The watermark does not replace a correct
+              answer with an incorrect one merely to leave a trace.
+            </p>
+            <p>
+              Code follows the same rule. Positions with one clearly correct
+              or best choice are not nudged, so code generally carries less
+              watermarking than natural-language prose. Comments, variable
+              names, and equivalent implementations may still offer choices,
+              allowing the watermark to act there with little practical effect
+              on the code itself.
+            </p>
+
+            <h3>Images and other files</h3>
+            <p>
+              When Claude creates supported files such as <code>.png</code>,
+              <code>.jpg</code>, or <code>.svg</code>, Anthropic uses C2PA
+              content credentials rather than the statistical text watermark
+              described above.
+            </p>
+            <p>
+              A C2PA credential is a cryptographically signed record attached
+              to a file’s metadata. It says that Claude generated or processed
+              the file, and C2PA-aware tools can read and verify it. Like the
+              text watermark, the credential does not identify a particular
+              user or organization; it records Claude’s involvement with the
+              file.
+            </p>
+            <p>
+              The two mechanisms are fundamentally different. A text watermark
+              is a statistical pattern in token choices and produces a
+              probabilistic detection result. A C2PA credential is a signed
+              metadata record. Copying and pasting text may preserve its
+              statistical pattern, while screenshots, re-exports, or metadata
+              removal may strip a file credential.
+            </p>
+            <p>
+              Claude’s text watermark should therefore not be understood as a
+              label attached to a document file, and C2PA metadata in an image
+              should not be treated as the same watermarking algorithm.
+            </p>
+          </section>
+
+          <section aria-labelledby="why-watermark">
+            <h2 id="why-watermark">6. Why Introduce a Text Watermark?</h2>
+            <p>
+              Anthropic is introducing text watermarking to comply with the
+              European Union’s transparency requirements for AI-generated
+              content. The watermark will apply globally at launch because the
+              company does not yet have a durable way to limit it to the EU.
+              Anthropic also plans to add watermarking over the following months
+              to older models released before August 2, 2026, which are covered
+              by a transition period.
+            </p>
+            <p>
+              From a regulatory and platform-governance perspective, a
+              watermark provides provenance evidence for AI-generated text. It
+              will not stop someone who deliberately tries to evade detection,
+              and it cannot replace fact-checking, copyright analysis, or human
+              review. It can, however, make direct or lightly edited model
+              outputs easier to identify when they spread at scale.
+            </p>
+            <p>
+              A text watermark can establish only one thing: a passage may have
+              been generated or processed by Claude at some point. It cannot
+              determine who the author is, whether the content is true, or who
+              bears responsibility for it.
+            </p>
+            <p>
+              In short, Claude’s watermark is hidden in a series of apparently
+              ordinary choices. No single choice proves anything. Only when many
+              choices collectively match a pattern produced by the secret key
+              do they form a detectable statistical signal.
+            </p>
+          </section>
+      </article>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-shell footer-inner">
+        <p>How Claude’s text watermark works</p>
+        <a href="/">Back to Library</a>
+      </div>
+    </footer>
+  </body>
+</html>

@@ -49,6 +49,11 @@ test("English and Chinese translations expose the same complete interface", () =
     "article2Title",
     "article2Summary",
     "article2Aria",
+    "article3Date",
+    "article3ReadingTime",
+    "article3Title",
+    "article3Summary",
+    "article3Aria",
     "footer",
     "githubAria",
     "linkedinAria",
@@ -85,8 +90,18 @@ test("both locales describe the inference article", () => {
   assert.equal(translations.zh.article2Title, "Transformer LLM 如何生成文本");
   assert.match(translations.en.article2Summary, /Prefill.*Decode.*KV cache/i);
   assert.match(translations.zh.article2Summary, /Prefill.*Decode.*KV Cache/i);
-  assert.equal(translations.en.count, "2 articles");
-  assert.equal(translations.zh.count, "2 篇文章");
+  assert.equal(translations.en.count, "3 articles");
+  assert.equal(translations.zh.count, "3 篇文章");
+});
+
+test("both locales describe the Claude watermark article", () => {
+  assert.equal(
+    translations.en.article3Title,
+    "How Claude’s Text Watermark Works",
+  );
+  assert.equal(translations.zh.article3Title, "Claude 文本水印如何工作");
+  assert.match(translations.en.article3Summary, /secret.*key.*token.*sampling/i);
+  assert.match(translations.zh.article3Summary, /密钥.*token.*采样/i);
 });
 
 test("applying a language updates visible copy, accessible labels, and document language", () => {

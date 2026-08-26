@@ -15,7 +15,7 @@ export const translations = {
       "Backend software engineer with 3 years of experience building reliable production systems in insurtech. I work across AI customer service, multi-agent orchestration and high-concurrency services—and I’m exploring more opportunities in Germany.",
     profileImageAlt: "Portrait of Mei",
     latest: "Articles",
-    count: "2 articles",
+    count: "3 articles",
     topic: "LLMs",
     date: "AUG 2026",
     readingTime: "15 MIN READ",
@@ -29,6 +29,12 @@ export const translations = {
     article2Summary:
       "Prefill, Decode, the KV cache, and prompt caching—from compute savings to memory trade-offs.",
     article2Aria: "Read “How Transformer LLMs Generate Text”",
+    article3Date: "AUG 2026",
+    article3ReadingTime: "16 MIN READ",
+    article3Title: "How Claude’s Text Watermark Works",
+    article3Summary:
+      "How secret-key-controlled token sampling leaves a detectable statistical pattern—and where that signal breaks down.",
+    article3Aria: "Read “How Claude’s Text Watermark Works”",
     footer: "More writing will appear here over time.",
     githubAria: "Visit Xie Mei's GitHub profile",
     linkedinAria: "Visit Mei's LinkedIn profile",
@@ -50,7 +56,7 @@ export const translations = {
       "拥有 3 年保险科技生产系统经验的后端软件工程师，专注于 AI 客服、多智能体编排与高并发服务，目前正在探索更多德国工作机会。",
     profileImageAlt: "Mei 的个人照片",
     latest: "文章",
-    count: "2 篇文章",
+    count: "3 篇文章",
     topic: "LLMs",
     date: "2026年8月",
     readingTime: "阅读约 15 分钟",
@@ -64,6 +70,12 @@ export const translations = {
     article2Summary:
       "从 Prefill、Decode 与 KV Cache，到计算节省、显存代价和 Prompt Cache。",
     article2Aria: "阅读《Transformer LLM 如何生成文本》",
+    article3Date: "2026年8月",
+    article3ReadingTime: "阅读约 16 分钟",
+    article3Title: "Claude 文本水印如何工作",
+    article3Summary:
+      "秘密密钥如何控制 token 采样并留下可检测的统计模式，以及这种信号会在何处失效。",
+    article3Aria: "阅读《Claude 文本水印如何工作》",
     footer: "更多文章会陆续整理在这里。",
     githubAria: "访问谢媚的 GitHub 主页",
     linkedinAria: "访问 Mei 的 LinkedIn 主页",
