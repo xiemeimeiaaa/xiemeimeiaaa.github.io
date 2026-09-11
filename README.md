@@ -1,4 +1,4 @@
-# MEI / 梅 — Knowledge Library
+# MEI — Knowledge Library
 
 A bilingual personal homepage and article index published at
 <https://xiemeimeiaaa.github.io/>.
