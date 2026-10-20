@@ -19,7 +19,10 @@ test("Claude watermark article exposes metadata and semantic landmarks", async (
   assert.match(html, /<article class="article-page" lang="en">/);
   assert.match(html, /<h1 class="article-title">/);
   assert.match(html, /<link rel="stylesheet" href="\/styles\.css">/);
-  assert.match(html, /<script type="module" src="\/script\.js"><\/script>/);
+  assert.match(
+    html,
+    /<script type="module" src="\/script\.js\?v=20261020-profile-copy"><\/script>/,
+  );
   assert.match(html, /href="https:\/\/github\.com\/xiemeimeiaaa"/);
 });
 

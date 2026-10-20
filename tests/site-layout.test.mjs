@@ -19,7 +19,11 @@ const pages = await Promise.all(
 test("every page uses the shared site chrome and assets", () => {
   for (const { path, html } of pages) {
     assert.match(html, /<link rel="stylesheet" href="\/styles\.css">/, path);
-    assert.match(html, /<script type="module" src="\/script\.js"><\/script>/, path);
+    assert.match(
+      html,
+      /<script type="module" src="\/script\.js\?v=20261020-profile-copy"><\/script>/,
+      path,
+    );
     assert.match(
       html,
       /class="site-name"[^>]*data-i18n="siteName"[^>]*>XIE MEI \/ 谢媚<\/a>/,
