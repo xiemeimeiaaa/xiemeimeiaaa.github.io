@@ -36,7 +36,7 @@ test("homepage exposes Mei's profile and social destinations", () => {
   assert.match(html, /src="\/assets\/mei-profile\.png"/);
   assert.match(
     html,
-    /Backend software engineer with 3 years of experience building reliable production systems at one of China's largest financial groups\./,
+    /I’m a software engineer based in Tübingen with three years of experience building production backend systems and LLM-powered applications\./,
   );
   assert.match(html, /href="https:\/\/github\.com\/xiemeimeiaaa"/);
   assert.match(

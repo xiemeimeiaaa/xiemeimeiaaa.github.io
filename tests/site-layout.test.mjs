@@ -21,7 +21,7 @@ test("every page uses the shared site chrome and assets", () => {
     assert.match(html, /<link rel="stylesheet" href="\/styles\.css">/, path);
     assert.match(
       html,
-      /<script type="module" src="\/script\.js\?v=20261020-profile-copy"><\/script>/,
+      /<script type="module" src="\/script\.js\?v=20261020-agent-intro"><\/script>/,
       path,
     );
     assert.match(
