@@ -12,7 +12,7 @@ export const translations = {
       "Clear explanations of language models, AI agents, and software engineering—built from first principles.",
     profileHeading: "Hi, I'm Mei. 👋",
     profileDescription:
-      "Backend software engineer with 3 years of experience building reliable production systems in insurtech. I work across AI customer service, multi-agent orchestration and high-concurrency services—and I’m exploring more opportunities in Germany.",
+      "Backend software engineer with 3 years of experience building reliable production systems at one of China's largest financial groups. I work across AI customer service, multi-agent orchestration and high-concurrency services—and I’m exploring more opportunities in Germany.",
     profileImageAlt: "Portrait of Mei",
     latest: "Articles",
     count: "3 articles",
@@ -53,7 +53,7 @@ export const translations = {
     description: "从第一性原理出发，清晰解释大语言模型、AI Agent 与软件工程。",
     profileHeading: "你好，我是 Mei。👋",
     profileDescription:
-      "拥有 3 年保险科技生产系统经验的后端软件工程师，专注于 AI 客服、多智能体编排与高并发服务，目前正在探索更多德国工作机会。",
+      "后端软件工程师，拥有 3 年开发经验，曾在中国最大的金融集团之一参与构建可靠的生产系统。专注于 AI 客服、多智能体编排与高并发服务，目前正在寻找德国的后端工程机会。",
     profileImageAlt: "Mei 的个人照片",
     latest: "文章",
     count: "3 篇文章",

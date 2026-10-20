@@ -67,7 +67,14 @@ test("English and Chinese translations expose the same complete interface", () =
 test("English profile copy preserves the approved introduction", () => {
   assert.equal(
     translations.en.profileDescription,
-    "Backend software engineer with 3 years of experience building reliable production systems in insurtech. I work across AI customer service, multi-agent orchestration and high-concurrency services—and I’m exploring more opportunities in Germany.",
+    "Backend software engineer with 3 years of experience building reliable production systems at one of China's largest financial groups. I work across AI customer service, multi-agent orchestration and high-concurrency services—and I’m exploring more opportunities in Germany.",
+  );
+});
+
+test("Chinese profile copy preserves the approved introduction", () => {
+  assert.equal(
+    translations.zh.profileDescription,
+    "后端软件工程师，拥有 3 年开发经验，曾在中国最大的金融集团之一参与构建可靠的生产系统。专注于 AI 客服、多智能体编排与高并发服务，目前正在寻找德国的后端工程机会。",
   );
 });
 
