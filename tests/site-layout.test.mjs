@@ -10,6 +10,7 @@ const pages = await Promise.all(
     "../articles/transformer-inference-kv-cache/index.html",
     "../articles/transformer-llms-for-beginners/index.html",
     "../articles/claude-text-watermark/index.html",
+    "../articles/linear-attention-and-gated-linear-attention/index.html",
   ].map(async (path) => ({
     path,
     html: await readFile(new URL(path, import.meta.url), "utf8"),
@@ -21,7 +22,7 @@ test("every page uses the shared site chrome and assets", () => {
     assert.match(html, /<link rel="stylesheet" href="\/styles\.css">/, path);
     assert.match(
       html,
-      /<script type="module" src="\/script\.js\?v=20261020-agent-intro"><\/script>/,
+      /<script type="module" src="\/script\.js\?v=20261029-linear-attention"><\/script>/,
       path,
     );
     assert.match(

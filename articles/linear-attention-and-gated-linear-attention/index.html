@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="A step-by-step guide to linear attention and gated linear attention: computational complexity, feature maps, recurrent states, and selective forgetting.">
+    <meta name="theme-color" content="#fcfcfb">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="What Are Linear Attention and Gated Linear Attention?">
+    <meta property="og:url" content="https://xiemeimeiaaa.github.io/articles/linear-attention-and-gated-linear-attention/">
+    <link rel="canonical" href="https://xiemeimeiaaa.github.io/articles/linear-attention-and-gated-linear-attention/">
+    <title>What Are Linear Attention and Gated Linear Attention? — Mei</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js"></script>
+    <script type="module" src="/script.js?v=20261029-linear-attention"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#article-content">Skip to article</a>
+    <header class="site-header">
+      <div class="site-shell header-inner">
+        <a class="site-name" href="/" data-i18n="siteName">XIE MEI / 谢媚</a>
+        <nav class="site-nav" data-i18n-aria="primaryNavAria" aria-label="Primary navigation">
+          <a href="/#articles" data-i18n="articlesNav">Articles</a>
+          <a
+            href="https://github.com/xiemeimeiaaa"
+            data-i18n="githubLabel"
+            data-i18n-aria="githubAria"
+            aria-label="Visit Xie Mei's GitHub profile"
+          >GitHub</a>
+          <button
+            class="language-switch"
+            type="button"
+            data-language-switch
+            data-i18n="switchLabel"
+            data-i18n-aria="switchLabel"
+            aria-label="中文 · EN"
+          >中文 · EN</button>
+        </nav>
+      </div>
+    </header>
+
+    <main id="article-content" class="site-shell article-main">
+      <article class="article-page" lang="en">
+        <header class="article-header">
+          <h1 class="article-title">What Are Linear Attention and Gated Linear Attention?</h1>
+          <div class="article-meta"><time datetime="2026-10-29">October 2026</time><span>14 min read</span></div>
+        </header>
+<p>Standard attention has a computational complexity of \(O(N^2)\), which makes processing long token sequences expensive. Linear attention was introduced to address this cost: “linear” means \(O(N)\), so computation grows only linearly with sequence length. Gated linear attention adds a gate that controls how much information from earlier tokens is forgotten. How do these mechanisms work? Let’s walk through them.</p>
+<h2 id="1-reviewing-standard-self-attention">1. Reviewing Standard Self-Attention</h2>
+<h3 id="11-a-brief-recap-of-attention">1.1 A brief recap of attention</h3>
+<p>For a single attention head, assume the sequence length is \(N\):</p>
+<div class="math-block">\[Q,K\in\mathbb{R}^{N\times d_k},\qquad V\in\mathbb{R}^{N\times d_v}\]</div>
+<ul>
+<li><strong>Q (Query):</strong> the features a token uses to look for information.</li>
+<li><strong>K (Key):</strong> the features past tokens provide for a query to match against.</li>
+<li><strong>V (Value):</strong> the content to aggregate after matching.</li>
+</ul>
+<p>Standard scaled dot-product attention is:</p>
+<div class="math-block">\[O=\operatorname{softmax}\left(\frac{QK^\top}{\sqrt{d_k}}\right)V\]</div>
+<p>The output vector \(o_t\) for token \(t\) is:</p>
+<div class="math-block">\[o_t=\sum_{i=1}^{t}\alpha_{ti}v_i\]</div>
+<p>Here, \(\alpha_{ti}\) is the attention weight that token \(t\) assigns to token \(i\):</p>
+<div class="math-block">\[\alpha_{ti}=\frac{\exp(q_t^\top k_i/\sqrt{d_k})}{\sum_{j=1}^{t}\exp(q_t^\top k_j/\sqrt{d_k})}\]</div>
+<p>The term \(q_t^\top k_i\) is the dot product of query \(t\) and key \(i\). Softmax converts matching scores into nonnegative weights that sum to 1, while \(\sqrt{d_k}\) controls the scale of those scores.</p>
+<h3 id="12-where-does-the-on2-complexity-come-from">1.2 Where does the O(N²) complexity come from?</h3>
+<p>First, recall how we derive the complexity of matrix multiplication. Suppose we have two matrices:</p>
+<div class="math-block">\[A\in\mathbb{R}^{m\times k},\quad B\in\mathbb{R}^{k\times n}\]</div>
+<p>Their product is:</p>
+<div class="math-block">\[C=AB\in\mathbb{R}^{m\times n}\]</div>
+<p>The computation proceeds as follows:</p>
+<ol>
+<li>The result matrix C contains m × n elements.</li>
+<li>Each element is the dot product of a row and a column, both of length k.</li>
+<li>Each dot product requires <strong>k multiplications and (k − 1) additions</strong>.</li>
+</ol>
+<p>The total operation count is therefore approximately:</p>
+<div class="math-block">\[(m\times n)\times(2k-1)\]</div>
+<p>Ignoring constants and lower-order terms gives the time complexity:</p>
+<div class="math-block">\[\boxed{O(mkn)}\]</div>
+<p>As noted above, \(Q,K\in\mathbb{R}^{N\times d_k}\), so computing \(QK^\top\) costs:</p>
+<div class="math-block">\[(N\times d_k)(d_k\times N)\Longrightarrow O(N^2d_k)\]</div>
+<p>Multiplying the post-softmax matrix \(A\in\mathbb R^{N\times N}\) by \(V\) costs:</p>
+<div class="math-block">\[(N\times N)(N\times d_v)\Longrightarrow O(N^2d_v)\]</div>
+<p>The dominant computational complexity is therefore:</p>
+<div class="math-block">\[\boxed{O(N^2d_k+N^2d_v)}\]</div>
+<p>When \(d_k\) and \(d_v\) are fixed, we can write this as \(O(N^2)\). Doubling the sequence length roughly quadruples the dominant computation. A causal mask changes only the constant factor, not the asymptotic order.</p>
+<h2 id="2-how-linear-attention-reduces-computational-complexity">2. How Linear Attention Reduces Computational Complexity</h2>
+<h3 id="21-the-associativity-of-matrix-multiplication">2.1 The associativity of matrix multiplication</h3>
+<p>Let’s temporarily remove softmax and apply the associativity of matrix multiplication:</p>
+<div class="math-block">\[(QK^\top)V=Q(K^\top V)\]</div>
+<p>On the left, the intermediate result \(QK^\top\) has shape \(N\times N\). On the right, we can aggregate first and obtain a fixed-size matrix:</p>
+<div class="math-block">\[K^\top V\in\mathbb R^{d_k\times d_v}\]</div>
+<p>The two matrix multiplications on the right have a combined complexity of \(O(Nd_kd_v)\). With fixed feature dimensions, this grows linearly with the sequence length \(N\).</p>
+<p>But actual attention is \(\operatorname{softmax}(QK^\top)V\). Softmax computes \(\operatorname{softmax}(s_i)=e^{s_i}/\sum_j e^{s_j}\): it exponentiates each score and normalizes using scores across all keys. In general:</p>
+<div class="math-block">\[\operatorname{softmax}(QK^\top)V\neq Q(K^\top V)\]</div>
+<p>Linear attention therefore typically redefines the similarity function.</p>
+<h3 id="22-redefining-similarity-with-a-feature-map">2.2 Redefining similarity with a feature map</h3>
+<p>A typical approach is to define query–key similarity as:</p>
+<div class="math-block">\[\operatorname{sim}(q,k)=\phi(q)^\top\phi(k)\]</div>
+<p>The <strong>feature map</strong> \(\phi\) transforms the input vectors into a new feature space. Similarity remains a dot product of two vectors, which allows past keys and values to be aggregated in advance.</p>
+<p>A classic choice is:</p>
+<div class="math-block">\[\phi(x)=\operatorname{ELU}(x)+1\]</div>
+<p>Applied element by element:</p>
+<div class="math-block">\[\phi(x)=\begin{cases}x+1,&amp;x&gt;0\\e^x,&amp;x\le 0\end{cases}\]</div>
+<p>This mapping produces positive features, so \(\phi(q)^\top\phi(k)&gt;0\), making it convenient to define nonnegative, normalized attention weights.</p>
+<p><strong>Why use positive values here?</strong> If we normalize potentially negative dot products by their sum, positive and negative terms may cancel, making the denominator zero or close to zero. The resulting weights may also be negative. A positive feature map avoids this sign-cancellation problem, although floating-point implementations may still need to handle denominators close to zero.</p>
+<p><strong>How do researchers find \(\phi\)?</strong> They can design it by hand, as with ELU + 1; derive it from a particular kernel; construct it using random features; or learn it as part of a model. For example, one family of designs used in Performer aims for:</p>
+<div class="math-block">\[\phi(q)^\top\phi(k)\approx\exp(q^\top k/\sqrt{d_k})\]</div>
+<p>This approximates the exponential kernel used by softmax. ELU + 1 usually defines a different similarity function; it is not guaranteed to equal or approximate the original softmax kernel. Linear attention may therefore trade some expressiveness for efficiency on long sequences. <strong>This does not mean a trained linear-attention model must perform worse than a Transformer with softmax attention. During training, the model can adjust its Q/K/V projections and other parameters to adapt to the new attention mechanism.</strong></p>
+<p>Can we simply replace softmax with ELU + 1 in an already trained Transformer?</p>
+<p>Usually, we cannot make that replacement and expect the model’s behavior to stay the same. The pretrained parameters were learned under the computational rules of softmax attention. If we directly replace:</p>
+<div class="math-block">\[\operatorname{softmax}(QK^\top)V \longrightarrow \operatorname{LinearAttention}(Q,K,V)\]</div>
+<p>the output distribution of each layer may change. These changes can accumulate across layers and degrade model performance.</p>
+<p>We therefore usually need to:</p>
+<ul>
+<li>Train a model with linear attention from scratch; or</li>
+<li>Use a suitable architecture conversion, distillation, and continued training to help the model adapt.</li>
+</ul>
+<p>This is why linear attention is an architectural choice, rather than merely a GPU acceleration algorithm that can freely replace softmax.</p>
+<h3 id="23-implementing-causal-linear-attention">2.3 Implementing causal linear attention</h3>
+<p>Causal attention means token \(t\) can attend only to itself and earlier tokens. Notice that the following sums run from \(i=1\) through \(t\), preserving causality.</p>
+<p>For normalized linear attention:</p>
+<div class="math-block">\[o_t=\frac{\sum_{i=1}^{t}[\phi(q_t)^\top\phi(k_i)]v_i}{\sum_{i=1}^{t}\phi(q_t)^\top\phi(k_i)}\]</div>
+<p>Factoring \(\phi(q_t)\) out of the sums gives:</p>
+<div class="math-block">\[o_t^\top=\frac{\phi(q_t)^\top\left(\sum_{i=1}^{t}\phi(k_i)v_i^\top\right)}{\phi(q_t)^\top\left(\sum_{i=1}^{t}\phi(k_i)\right)}\]</div>
+<p>Define:</p>
+<div class="math-block">\[S_t=\sum_{i=1}^{t}\phi(k_i)v_i^\top,\qquad z_t=\sum_{i=1}^{t}\phi(k_i)\]</div>
+<p>Then:</p>
+<div class="math-block">\[\boxed{o_t^\top=\frac{\phi(q_t)^\top S_t}{\phi(q_t)^\top z_t}}\]</div>
+<p>Both states can be updated recurrently:</p>
+<div class="math-block">\[S_t=S_{t-1}+\phi(k_t)v_t^\top,\qquad z_t=z_{t-1}+\phi(k_t)\]</div>
+<p>The state size depends on the feature-map dimension \(d_\phi\) and the value dimension \(d_v\). It does not grow with the number of past tokens.</p>
+<h3 id="24-is-linear-attention-an-rnn">2.4 Is linear attention an RNN?</h3>
+<p>The general form of a recurrent neural network (RNN) is:</p>
+<div class="math-block">\[h_t=f(h_{t-1},x_t)\]</div>
+<p>The current linear-attention state \(S_t\) depends on the previous state \(S_{t-1}\) and the current keys and values, so its computation is also recurrent. Compared with a traditional RNN, the state here is typically a matrix, and the current query reads information from that state.</p>
+<h2 id="3-gated-linear-attention-adding-forgetting-to-the-state">3. Gated Linear Attention: Adding Forgetting to the State</h2>
+<p>Take the identity feature map \(\phi(x)=x\) and omit the normalization state \(z_t\):</p>
+<div class="math-block">\[S_t=S_{t-1}+k_tv_t^\top,\qquad o_t^\top=q_t^\top S_t\]</div>
+<p>This changes the attention mechanism from the normalized version discussed above. The weights likewise need to adapt to the new architecture; equivalent behavior does not follow automatically.</p>
+<p>Historical key–value outer products keep accumulating, with no explicit forgetting mechanism. GLA introduces a gate so that the model can decide which parts of the old state should decay:</p>
+<div class="math-block">\[S_t=G_tS_{t-1}+k_tv_t^\top\]</div>
+<h3 id="31-an-example-of-gating">3.1 An example of gating</h3>
+<div class="math-block">\[\boxed{S_t=\operatorname{diag}(e^{g_t})S_{t-1}+k_tv_t^\top}\]</div>
+<div class="math-block">\[\boxed{o_t^\top=\frac{q_t^\top S_t}{\sqrt{d_k}}}\]</div>
+<p>Here:</p>
+<ul>
+<li>\(S_t\in\mathbb R^{d_k\times d_v}\) is the current aggregate memory state.</li>
+<li>\(g_t\in\mathbb R^{d_k}\) is a <strong>log-space gate</strong> that controls decay along the key-feature dimension. A neural network computes the gate from the current token’s content, determining how much old memory to retain.</li>
+<li>\(k_tv_t^\top\) is the outer product written into the state by the current token.</li>
+<li>\(q_t\) is the query the current token uses to read the state.</li>
+<li>\(\operatorname{diag}\) places a vector on the main diagonal of a square matrix.</li>
+</ul>
+<p>For example:</p>
+<div class="math-block">\[e^{g_t}=\begin{bmatrix}0.9\\0.5\\0.1\end{bmatrix},\qquad \operatorname{diag}(e^{g_t})=\begin{bmatrix}0.9&amp;0&amp;0\\0&amp;0.5&amp;0\\0&amp;0&amp;0.1\end{bmatrix}\]</div>
+<p>Left-multiplying \(S_{t-1}\) by this matrix scales the first row by 0.9, the second by 0.5, and the third by 0.1.</p>
+<h3 id="32-how-historical-information-gradually-decays">3.2 How historical information gradually decays</h3>
+<p>Let \(G_t=\operatorname{diag}(e^{g_t})\) and assume \(S_0=0\). Then:</p>
+<div class="math-block">\[S_1=k_1v_1^\top\]</div>
+<div class="math-block">\[S_2=G_2k_1v_1^\top+k_2v_2^\top\]</div>
+<div class="math-block">\[S_3=G_3G_2k_1v_1^\top+G_3k_2v_2^\top+k_3v_3^\top\]</div>
+<div class="math-block">\[S_4=G_4G_3G_2k_1v_1^\top+G_4G_3k_2v_2^\top+G_4k_3v_3^\top+k_4v_4^\top\]</div>
+<p>For an arbitrary step \(t\):</p>
+<div class="math-block">\[\boxed{S_t=\sum_{i=1}^{t}\left(\prod_{j=i+1}^{t}G_j\right)k_iv_i^\top}\]</div>
+<p>The symbol \(\prod\) denotes a product of successive terms. Substituting into \(o_t^\top=q_t^\top S_t/\sqrt{d_k}\) gives:</p>
+<div class="math-block">\[o_t^\top=\frac{q_t^\top}{\sqrt{d_k}}\sum_{i=1}^{t}\left(\prod_{j=i+1}^{t}G_j\right)k_iv_i^\top\]</div>
+<p>Matrix multiplication distributes over addition, so we can move \(q_t^\top\) inside the sum:</p>
+<div class="math-block">\[o_t^\top=\frac{1}{\sqrt{d_k}}\sum_{i=1}^{t}q_t^\top\left(\prod_{j=i+1}^{t}G_j\right)k_iv_i^\top\]</div>
+<p>Look at this part:</p>
+<div class="math-block">\[\underbrace{q_t^\top\left(\prod_{j=i+1}^{t}G_j\right)k_i}_{\text{a scalar}}\]</div>
+<p>Its dimensions follow:</p>
+<div class="math-block">\[\underbrace{q_t^\top}_{1\times d_k}\underbrace{G_j}_{d_k\times d_k}\underbrace{k_i}_{d_k\times 1}\]</div>
+<p>The product is a single number that we can interpret as a weight. GLA can still be understood as a weighted sum of past values, but the effective weight of each historical position also depends on the intervening gates. Gate values close to 1 let information persist longer; values consistently below 1 gradually attenuate it.</p>
+<h2 id="4-comparing-the-three-attention-mechanisms">4. Comparing the Three Attention Mechanisms</h2>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>Standard softmax attention</th>
+<th>Linear attention</th>
+<th>Gated linear attention (the formulation here)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Historical information</td>
+<td>Stores and matches against past K/V</td>
+<td>Aggregates past K/V into a fixed-size state</td>
+<td>Fixed-size state with dynamic forgetting</td>
+</tr>
+<tr>
+<td>Weights</td>
+<td>Nonnegative and sum to 1 after softmax</td>
+<td>Depends on the variant</td>
+<td>No cross-token softmax normalization</td>
+</tr>
+<tr>
+<td>Autoregressive cache</td>
+<td>Grows with the token count</td>
+<td>Fixed-size state</td>
+<td>Fixed-size state</td>
+</tr>
+<tr>
+<td>Complexity in sequence length, with fixed dimensions</td>
+<td>O(N²)</td>
+<td>O(N)</td>
+<td>O(N)</td>
+</tr>
+<tr>
+<td>Explicit forgetting</td>
+<td>No dedicated state-forgetting gate</td>
+<td>None in the basic formulation</td>
+<td>Uses a gate</td>
+</tr>
+<tr>
+<td>Main challenges</td>
+<td>High cost for long sequences</td>
+<td>State capacity and retrieval interference</td>
+<td>State capacity, decay, and GPU parallel efficiency</td>
+</tr>
+</tbody>
+</table>
+<p>The three core expressions are:</p>
+<p><strong>Standard softmax attention</strong></p>
+<div class="math-block">\[O=\operatorname{softmax}(QK^\top/\sqrt{d_k})V\]</div>
+<p><strong>Simple, unnormalized linear attention</strong></p>
+<div class="math-block">\[S_t=S_{t-1}+k_tv_t^\top,\qquad o_t^\top=q_t^\top S_t\]</div>
+<p><strong>Gated linear attention</strong></p>
+<div class="math-block">\[S_t=\operatorname{diag}(e^{g_t})S_{t-1}+k_tv_t^\top,\qquad o_t^\top=\frac{q_t^\top S_t}{\sqrt{d_k}}\]</div>
+<p>Standard attention accesses past tokens directly. Linear attention compresses history into a fixed-size state. GLA adds selective forgetting to that state.</p>
+<p>For further discussion, see <a href="https://zhuanlan.zhihu.com/p/1971671251123705351">Gated DeltaNet: The Linear Attention Mechanism Used by Qwen and Kimi</a> (in Chinese).</p>
+<h2 id="references">References</h2>
+<ol>
+<li><a href="https://arxiv.org/abs/1706.03762">Attention Is All You Need — Vaswani et al. (2017)</a></li>
+<li><a href="https://proceedings.mlr.press/v119/katharopoulos20a.html">Transformers are RNNs: Fast Autoregressive Transformers with Linear Attention (ICML 2020)</a></li>
+<li><a href="https://proceedings.mlr.press/v235/yang24ab.html">Gated Linear Attention Transformers with Hardware-Efficient Training (ICML 2024)</a></li>
+</ol>
+      </article>
+    </main>
+    <footer class="site-footer"><div class="site-shell footer-inner"><p>XIE MEI / 谢媚</p><a href="/#articles" data-i18n="articlesNav">Articles</a></div></footer>
+  </body>
+</html>

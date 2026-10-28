@@ -21,7 +21,7 @@ test("Claude watermark article exposes metadata and semantic landmarks", async (
   assert.match(html, /<link rel="stylesheet" href="\/styles\.css">/);
   assert.match(
     html,
-    /<script type="module" src="\/script\.js\?v=20261020-agent-intro"><\/script>/,
+    /<script type="module" src="\/script\.js\?v=20261029-linear-attention"><\/script>/,
   );
   assert.match(html, /href="https:\/\/github\.com\/xiemeimeiaaa"/);
 });
@@ -56,10 +56,7 @@ test("Claude watermark article preserves the source announcement framing", async
 
 test("Claude watermark article uses the localized shared navigation and footer", async () => {
   const html = await readFile(articleUrl, "utf8");
-  assert.match(
-    html,
-    /<a class="back-link" href="\/#articles" data-i18n="articlesNav">Articles<\/a>/,
-  );
+  assert.doesNotMatch(html, /class="back-link"/);
   assert.match(html, /<p data-i18n="footer">More writing will appear here over time\.<\/p>/);
   assert.match(html, /<a href="\/#articles" data-i18n="articlesNav">Articles<\/a>/);
 });

@@ -15,7 +15,8 @@ test("homepage links to all published articles", () => {
   );
   assert.match(html, /articles\/transformer-inference-kv-cache\//);
   assert.match(html, /articles\/claude-text-watermark\//);
-  assert.equal((html.match(/class="post-entry"/g) ?? []).length, 3);
+  assert.match(html, /articles\/linear-attention-and-gated-linear-attention\//);
+  assert.equal((html.match(/class="post-entry"/g) ?? []).length, 4);
   assert.doesNotMatch(html, /class="article-card"/);
 });
 

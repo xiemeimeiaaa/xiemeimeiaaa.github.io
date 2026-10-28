@@ -3,9 +3,10 @@
 A bilingual personal homepage and article index published at
 <https://xiemeimeiaaa.github.io/>.
 
-The homepage currently features three long-form guides maintained in this
+The homepage currently features four long-form guides maintained in this
 repository:
 
+- [`What Are Linear Attention and Gated Linear Attention?`](https://xiemeimeiaaa.github.io/articles/linear-attention-and-gated-linear-attention/), maintained under `articles/linear-attention-and-gated-linear-attention/`.
 - [`How Transformer LLMs Generate Text: Inference and the KV Cache`](https://xiemeimeiaaa.github.io/articles/transformer-inference-kv-cache/), maintained in this repository under `articles/transformer-inference-kv-cache/`.
 - [`Transformer LLMs for Beginners`](https://xiemeimeiaaa.github.io/articles/transformer-llms-for-beginners/), maintained under `articles/transformer-llms-for-beginners/`.
 - [`How Claude’s Text Watermark Works`](https://xiemeimeiaaa.github.io/articles/claude-text-watermark/), maintained in this repository under `articles/claude-text-watermark/`.
