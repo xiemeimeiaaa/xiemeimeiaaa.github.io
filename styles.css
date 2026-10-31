@@ -233,6 +233,64 @@ p {
   white-space: nowrap;
 }
 
+.education {
+  padding: 36px 0 38px;
+  border-bottom: 1px solid var(--line);
+}
+
+.education h2 {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.education-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 10px 0;
+}
+
+.education-school {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.education-school:hover {
+  color: var(--accent);
+}
+
+.education-logo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  flex: none;
+}
+
+.education-details {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.education-degree {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 400;
+}
+
+.education-date {
+  color: var(--muted);
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+
 .articles {
   padding-top: 38px;
 }
@@ -540,6 +598,16 @@ mjx-container {
 
   .profile-link svg {
     transform: scale(1.1);
+  }
+
+  .education-entry {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .education-date {
+    margin-left: 54px;
   }
 
   .article-header {
