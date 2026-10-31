@@ -13,8 +13,6 @@ export const translations = {
     profileHeading: "Hi, I'm Mei. 👋",
     profileDescription:
       "I’m a software engineer based in Tübingen with three years of experience building production backend systems and LLM-powered applications. I’m currently building infrastructure for running and evaluating coding agents, with a focus on reproducible experiments and trustworthy evaluation results. I’m also open to software engineering opportunities in Germany.",
-    profileEducation:
-      "I hold a master’s degree in Logistics Engineering from Nanjing University (2020–2023) and a bachelor’s degree in Logistics Engineering from Beijing Jiaotong University (2016–2020).",
     profileImageAlt: "Portrait of Mei",
     latest: "Articles",
     count: "4 articles",
@@ -61,8 +59,6 @@ export const translations = {
     profileHeading: "你好，我是 Mei。👋",
     profileDescription:
       "我是一名现居图宾根的软件工程师，拥有三年生产级后端系统与大语言模型应用开发经验。目前，我正在构建用于运行和评估编程智能体的基础设施，重点关注实验的可复现性和评估结果的可信度。同时，我也在寻找德国的软件工程师机会。",
-    profileEducation:
-      "我拥有南京大学物流工程硕士学位（2020–2023）和北京交通大学物流工程学士学位（2016–2020）。",
     profileImageAlt: "Mei 的个人照片",
     latest: "文章",
     count: "4 篇文章",

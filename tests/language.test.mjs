@@ -35,7 +35,6 @@ test("English and Chinese translations expose the same complete interface", () =
     "description",
     "profileHeading",
     "profileDescription",
-    "profileEducation",
     "profileImageAlt",
     "latest",
     "count",

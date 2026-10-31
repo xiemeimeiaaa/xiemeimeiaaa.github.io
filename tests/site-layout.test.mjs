@@ -20,11 +20,9 @@ const pages = await Promise.all(
 test("every page uses the shared site chrome and assets", () => {
   for (const { path, html } of pages) {
     assert.match(html, /<link rel="stylesheet" href="\/styles\.css">/, path);
-    const scriptVersion = path === "../index.html"
-      ? "20261101-education"
-      : "20261029-linear-attention";
-    assert.ok(
-      html.includes(`<script type="module" src="/script.js?v=${scriptVersion}"></script>`),
+    assert.match(
+      html,
+      /<script type="module" src="\/script\.js\?v=20261029-linear-attention"><\/script>/,
       path,
     );
     assert.match(
